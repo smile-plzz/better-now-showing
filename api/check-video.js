@@ -9,15 +9,33 @@ export default async function handler(req, res) {
         }
 
         try {
-            // Attempt to fetch the URL without AbortController for now
-            const response = await fetch(url, {
-                method: 'HEAD',
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (compatible; NowShowing/1.0)'
-                }
-            });
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 6000);
 
-            const available = response.ok;
+            let response;
+            try {
+                response = await fetch(url, {
+                    method: 'HEAD',
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (compatible; NowShowing/1.0)'
+                    },
+                    signal: controller.signal
+                });
+            } catch (headErr) {
+                // Many providers block HEAD; fall back to GET with small range to minimize bandwidth
+                response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (compatible; NowShowing/1.0)',
+                        'Range': 'bytes=0-0'
+                    },
+                    signal: controller.signal
+                });
+            } finally {
+                clearTimeout(timeout);
+            }
+
+            const available = response.ok || (response.status >= 200 && response.status < 400);
 
             res.status(200).json({ url, available });
         } catch (error) {

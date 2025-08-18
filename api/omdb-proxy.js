@@ -1,7 +1,7 @@
 import fetch from 'node-fetch';
 
 export default async function (req, res) {
-    const { imdbID, title, type, s, page, seasonNumber } = req.query;
+    const { imdbID, title, type, s, page, seasonNumber, plot, y } = req.query;
     const OMDB_API_KEY = process.env.OMDB_API_KEY;
 
     if (!OMDB_API_KEY) {
@@ -27,10 +27,17 @@ export default async function (req, res) {
     if (seasonNumber) {
         url += `&Season=${seasonNumber}`;
     }
+    if (plot) {
+        url += `&plot=${plot}`;
+    }
+    if (y) {
+        url += `&y=${y}`;
+    }
 
     try {
         const response = await fetch(url);
         const data = await response.json();
+        res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
         res.status(response.status).json(data);
     } catch (error) {
         console.error('Error proxying OMDb API request:', error);

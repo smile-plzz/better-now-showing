@@ -81,6 +81,7 @@ main {
     transition: color 0.2s ease;
     font-size: 1rem;
     position: relative;
+    outline: none;
 }
 
 .navbar-nav a::after {
@@ -100,6 +101,12 @@ main {
 
 .navbar-nav a:hover {
     color: var(--text-color);
+}
+
+.navbar-nav a:focus-visible {
+    color: var(--text-color);
+    box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.5);
+    border-radius: 4px;
 }
 
 .search-container {
@@ -308,6 +315,40 @@ main {
     font-weight: 700;
     text-align: center;
     color: var(--text-color);
+}
+
+/* --- Modal Actions (Watchlist) --- */
+.modal-actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.watchlist-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1rem;
+    background-color: var(--card-background);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 600;
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+}
+
+.watchlist-toggle[aria-pressed="true"],
+.watchlist-toggle.active {
+    background-color: #ffb703;
+    border-color: #ffb703;
+    color: #1a1a1a;
+}
+
+.watchlist-toggle:hover {
+    transform: translateY(-1px);
 }
 
 /* --- News Section --- */
@@ -590,6 +631,11 @@ main {
     border-color: var(--primary-color);
     color: white;
     box-shadow: 0 2px 8px rgba(var(--primary-color-rgb), 0.4);
+}
+
+.source-button:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.5);
 }
 
 .source-button.is-available {

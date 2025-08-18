@@ -8,6 +8,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const popularMoviesGrid = document.getElementById('popular-movies');
     const searchResultsGrid = document.getElementById('search-results');
     const popularTvShowsGrid = document.getElementById('popular-tv-shows');
+    const continueWatchingSection = document.getElementById('continue-watching-section');
+    const continueWatchingGrid = document.getElementById('continue-watching-grid');
+    const watchlistSection = document.getElementById('watchlist-section');
+    const watchlistGrid = document.getElementById('watchlist-grid');
     const newsGrid = document.getElementById('news-grid');
     const loadMoreNewsButton = document.getElementById('load-more-news');
     const videoModal = document.getElementById('video-modal');
@@ -27,11 +31,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadMorePopularButton = document.getElementById('load-more-popular');
     const loadMoreSearchButton = document.getElementById('load-more-search');
     const loadMorePopularTvButton = document.getElementById('load-more-popular-tv');
+    const watchlistToggle = document.getElementById('watchlist-toggle');
 
     const moviesNavLink = document.getElementById('movies-nav-link');
     const tvShowsNavLink = document.getElementById('tv-shows-nav-link');
+    const watchlistNavLink = document.getElementById('watchlist-nav-link');
+    const continueNavLink = document.getElementById('continue-nav-link');
     const mobileMoviesNavLink = document.getElementById('mobile-movies-nav-link');
     const mobileTvShowsNavLink = document.getElementById('mobile-tv-shows-nav-link');
+    const mobileWatchlistNavLink = document.getElementById('mobile-watchlist-nav-link');
+    const mobileContinueNavLink = document.getElementById('mobile-continue-nav-link');
 
     // --- Notification Elements ---
     const notificationButton = document.getElementById('notification-button');
@@ -61,6 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let searchResultsPage = 1;
     let currentSearchQuery = '';
     let lastFocusedElement = null; // To store the element that had focus before modal opened
+    let currentOpenImdbId = null;
 
     const videoSources = [
         { name: 'VidCloud', url: 'https://vidcloud.stream/', tvUrl: 'https://vidcloud.stream/' },
@@ -177,12 +187,40 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- UI RENDERING ---
+    // --- Storage helpers (localStorage) ---
+    const storage = {
+        WATCHLIST_KEY: 'ns_watchlist',
+        CONTINUE_KEY: 'ns_continue',
+        getWatchlist() {
+            try { return JSON.parse(localStorage.getItem(this.WATCHLIST_KEY)) || []; } catch { return []; }
+        },
+        setWatchlist(list) {
+            localStorage.setItem(this.WATCHLIST_KEY, JSON.stringify(list));
+        },
+        getContinueWatching() {
+            try { return JSON.parse(localStorage.getItem(this.CONTINUE_KEY)) || []; } catch { return []; }
+        },
+        setContinueWatching(list) {
+            localStorage.setItem(this.CONTINUE_KEY, JSON.stringify(list));
+        },
+        upsertContinue(entry) {
+            const list = this.getContinueWatching();
+            const filtered = list.filter(e => e.imdbID !== entry.imdbID);
+            filtered.unshift({ ...entry, updatedAt: Date.now() });
+            this.setContinueWatching(filtered.slice(0, 20));
+        }
+    };
+
     // Best practice: For dynamically added elements or elements whose event listeners
     // might change, store references to the listener functions and explicitly remove them
     // when the element is no longer needed or its behavior changes, to prevent memory leaks.
     const ui = {
         displayError(message, container = searchResultsGrid) {
-            container.innerHTML = `<h2 class="error-message">${message}</h2>`;
+            container.innerHTML = '';
+            const h2 = document.createElement('h2');
+            h2.className = 'error-message';
+            h2.textContent = message;
+            container.appendChild(h2);
             if (container === searchResultsGrid) {
                 searchResultsSection.style.display = 'block';
                 popularMoviesSection.style.display = 'none';
@@ -195,15 +233,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const movieCard = document.createElement('div');
             movieCard.className = 'movie-card';
-            movieCard.innerHTML = `
-                <div class="movie-card-image-container">
-                    <img src="${movie.Poster}" alt="${movie.Title}">
-                    <i class="fas fa-play play-icon" aria-hidden="true"></i>
-                </div>
-                <div class="movie-card-body">
-                    <h3 class="movie-card-title">${movie.Title}</h3>
-                </div>
-            `;
+
+            const imageContainer = document.createElement('div');
+            imageContainer.className = 'movie-card-image-container';
+
+            const img = document.createElement('img');
+            img.src = movie.Poster;
+            img.alt = movie.Title;
+            img.loading = 'lazy';
+
+            const playIcon = document.createElement('i');
+            playIcon.className = 'fas fa-play play-icon';
+            playIcon.setAttribute('aria-hidden', 'true');
+
+            imageContainer.appendChild(img);
+            imageContainer.appendChild(playIcon);
+
+            const body = document.createElement('div');
+            body.className = 'movie-card-body';
+
+            const title = document.createElement('h3');
+            title.className = 'movie-card-title';
+            title.textContent = movie.Title;
+
+            body.appendChild(title);
+
+            movieCard.appendChild(imageContainer);
+            movieCard.appendChild(body);
+
             movieCard.addEventListener('click', () => this.openVideoModal(movie.imdbID));
             return movieCard;
         },
@@ -302,7 +359,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const showPromises = titlesToLoad.map(title => api.fetchMovieByTitle(title, 'series'));
             const shows = await Promise.all(showPromises);
 
-            this.renderMovieGrid(popularTvShowsGrid, shows, append, loadMorePopularTvButton, popularMoviesPage, popularTitles.length);
+            this.renderMovieGrid(popularTvShowsGrid, shows, append, loadMorePopularTvButton, popularTvShowsPage, popularTitles.length);
         },
 
         async renderNews(append = false) {
@@ -325,14 +382,29 @@ document.addEventListener('DOMContentLoaded', () => {
                         newsCard.className = 'news-card';
                         newsCard.href = article.url;
                         newsCard.target = '_blank';
+                        newsCard.rel = 'noopener noreferrer';
 
-                        newsCard.innerHTML = `
-                            <img src="${article.urlToImage || ''}" alt="${article.title}">
-                            <div class="news-card-body">
-                                <h3 class="news-card-title">${article.title}</h3>
-                                <p class="news-card-source">${article.source.name}</p>
-                            </div>
-                        `;
+                        const img = document.createElement('img');
+                        img.src = article.urlToImage || '';
+                        img.alt = article.title;
+                        img.loading = 'lazy';
+
+                        const body = document.createElement('div');
+                        body.className = 'news-card-body';
+
+                        const title = document.createElement('h3');
+                        title.className = 'news-card-title';
+                        title.textContent = article.title;
+
+                        const source = document.createElement('p');
+                        source.className = 'news-card-source';
+                        source.textContent = article.source.name;
+
+                        body.appendChild(title);
+                        body.appendChild(source);
+
+                        newsCard.appendChild(img);
+                        newsCard.appendChild(body);
 
                         newsGrid.appendChild(newsCard);
                     });
@@ -401,6 +473,7 @@ document.addEventListener('DOMContentLoaded', () => {
             videoAvailabilityStatus.textContent = 'Loading video sources...';
             videoAvailabilityStatus.style.display = 'block';
             seasonEpisodeSelector.style.display = 'none'; // Hide by default
+            currentOpenImdbId = imdbID;
 
             const details = await api.fetchMovieDetails(imdbID);
 
@@ -417,7 +490,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (details.Ratings && details.Ratings.length > 0) {
                     details.Ratings.forEach(rating => {
                         const p = document.createElement('p');
-                        p.innerHTML = `<strong>${rating.Source}:</strong> ${rating.Value}`;
+                        const strong = document.createElement('strong');
+                        strong.textContent = `${rating.Source}:`;
+                        p.appendChild(strong);
+                        p.appendChild(document.createTextNode(` ${rating.Value}`));
                         otherRatingsContainer.appendChild(p);
                     });
                 }
@@ -434,6 +510,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('modal-movie-production').textContent = details.Production;
                 document.getElementById('modal-movie-website').textContent = details.Website;
 
+                // Setup watchlist toggle state
+                const watchlist = storage.getWatchlist();
+                const isInWatchlist = watchlist.some(item => item.imdbID === details.imdbID);
+                watchlistToggle.setAttribute('aria-pressed', isInWatchlist ? 'true' : 'false');
+                watchlistToggle.classList.toggle('active', isInWatchlist);
+                const toggleText = watchlistToggle.querySelector('.watchlist-toggle-text');
+                toggleText.textContent = isInWatchlist ? 'Remove from Watchlist' : 'Add to Watchlist';
+
                 if (details.Type === 'series') {
                     seasonEpisodeSelector.style.display = 'block';
                     // Populate seasons
@@ -447,9 +531,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Load episodes for the first season by default
                     await this.populateEpisodes(imdbID, 1);
 
-                    seasonSelect.onchange = async (event) => {
+                    ui.currentSeasonChangeListener = async (event) => {
                         await this.populateEpisodes(imdbID, event.target.value);
                     };
+                    seasonSelect.addEventListener('change', ui.currentSeasonChangeListener);
                     ui.currentEpisodeChangeListener = () => this.loadVideoForSelectedEpisode(imdbID);
                     episodeSelect.addEventListener('change', ui.currentEpisodeChangeListener);
 
@@ -529,6 +614,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.querySelectorAll('.source-button').forEach(btn => btn.classList.remove('active'));
                     button.classList.add('active');
                     videoAvailabilityStatus.textContent = `Loading from ${source.name}...`;
+                    // Save continue-watching entry
+                    storage.upsertContinue({ imdbID, title: document.getElementById('modal-movie-title').textContent, poster: document.getElementById('modal-movie-poster').src, type: 'movie' });
                 };
 
                 api.checkVideoAvailability(fullUrl).then(isAvailable => {
@@ -585,6 +672,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.querySelectorAll('.source-button').forEach(btn => btn.classList.remove('active'));
                     button.classList.add('active');
                     videoAvailabilityStatus.textContent = `Loading from ${source.name} (S${season}E${episode})...`;
+                    // Save continue-watching entry for series
+                    storage.upsertContinue({ imdbID, title: document.getElementById('modal-movie-title').textContent, poster: document.getElementById('modal-movie-poster').src, type: 'series', season, episode });
                 };
 
                 api.checkVideoAvailability(fullUrl).then(isAvailable => {
@@ -678,21 +767,52 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return url;
         },
+
+        renderListSection(container, items) {
+            container.innerHTML = '';
+            items.forEach(item => {
+                const card = this.createMovieCard({
+                    Poster: item.poster,
+                    Title: item.title,
+                    imdbID: item.imdbID,
+                });
+                if (card) container.appendChild(card);
+            });
+        },
     };
 
     // --- EVENT LISTENERS ---
-    const setupLoadMoreButton = (button, pageVar, renderFunction, query = null) => {
-        button.addEventListener('click', () => {
-            window[pageVar]++;
-            renderFunction(true, query);
-        });
-    };
+    // Explicit load more handlers for correctness and clarity
+    loadMorePopularButton.addEventListener('click', () => {
+        popularMoviesPage++;
+        ui.renderPopularMovies(true);
+    });
 
-    searchButton.addEventListener('click', () => ui.renderSearchResults(searchInput.value.trim()));
+    loadMoreSearchButton.addEventListener('click', () => {
+        searchResultsPage++;
+        ui.renderSearchResults(currentSearchQuery, true);
+    });
+
+    loadMorePopularTvButton.addEventListener('click', () => {
+        popularTvShowsPage++;
+        ui.renderPopularTvShows(true);
+    });
+
+    loadMoreNewsButton.addEventListener('click', () => {
+        newsPage++;
+        ui.renderNews(true);
+    });
+
+    // Debounced search
+    let searchDebounce;
+    const triggerSearch = () => ui.renderSearchResults(searchInput.value.trim());
+    searchButton.addEventListener('click', triggerSearch);
+    searchInput.addEventListener('input', () => {
+        clearTimeout(searchDebounce);
+        searchDebounce = setTimeout(triggerSearch, 400);
+    });
     searchInput.addEventListener('keyup', (event) => {
-        if (event.key === 'Enter') {
-            ui.renderSearchResults(searchInput.value.trim());
-        }
+        if (event.key === 'Enter') triggerSearch();
     });
 
     homeButton.addEventListener('click', (e) => {
@@ -750,16 +870,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    setupLoadMoreButton(loadMorePopularButton, 'popularMoviesPage', ui.renderPopularMovies);
-    setupLoadMoreButton(loadMoreSearchButton, 'searchResultsPage', ui.renderSearchResults, currentSearchQuery);
-    setupLoadMoreButton(loadMorePopularTvButton, 'popularTvShowsPage', ui.renderPopularTvShows);
-    setupLoadMoreButton(loadMoreNewsButton, 'newsPage', ui.renderNews);
+    // Load more handlers are set above
 
     moviesNavLink.addEventListener('click', (e) => {
         e.preventDefault();
         popularMoviesSection.style.display = 'block';
         searchResultsSection.style.display = 'none';
         popularTvShowsSection.style.display = 'none';
+        continueWatchingSection.style.display = storage.getContinueWatching().length ? 'block' : 'none';
+        watchlistSection.style.display = storage.getWatchlist().length ? 'block' : 'none';
         popularMoviesPage = 1;
         popularTvShowsPage = 1;
         ui.renderPopularMovies();
@@ -770,9 +889,31 @@ document.addEventListener('DOMContentLoaded', () => {
         popularMoviesSection.style.display = 'none';
         searchResultsSection.style.display = 'none';
         popularTvShowsSection.style.display = 'block';
+        continueWatchingSection.style.display = 'none';
+        watchlistSection.style.display = 'none';
         popularMoviesPage = 1;
         popularTvShowsPage = 1;
         ui.renderPopularTvShows();
+    });
+
+    watchlistNavLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        popularMoviesSection.style.display = 'none';
+        searchResultsSection.style.display = 'none';
+        popularTvShowsSection.style.display = 'none';
+        continueWatchingSection.style.display = 'none';
+        watchlistSection.style.display = 'block';
+        ui.renderListSection(watchlistGrid, storage.getWatchlist());
+    });
+
+    continueNavLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        popularMoviesSection.style.display = 'none';
+        searchResultsSection.style.display = 'none';
+        popularTvShowsSection.style.display = 'none';
+        watchlistSection.style.display = 'none';
+        continueWatchingSection.style.display = 'block';
+        ui.renderListSection(continueWatchingGrid, storage.getContinueWatching());
     });
 
     mobileMoviesNavLink.addEventListener('click', (e) => {
@@ -781,6 +922,8 @@ document.addEventListener('DOMContentLoaded', () => {
         popularMoviesSection.style.display = 'block';
         searchResultsSection.style.display = 'none';
         popularTvShowsSection.style.display = 'none';
+        continueWatchingSection.style.display = storage.getContinueWatching().length ? 'block' : 'none';
+        watchlistSection.style.display = storage.getWatchlist().length ? 'block' : 'none';
         popularMoviesPage = 1;
         popularTvShowsPage = 1;
         ui.renderPopularMovies();
@@ -792,9 +935,33 @@ document.addEventListener('DOMContentLoaded', () => {
         popularMoviesSection.style.display = 'none';
         searchResultsSection.style.display = 'none';
         popularTvShowsSection.style.display = 'block';
+        continueWatchingSection.style.display = 'none';
+        watchlistSection.style.display = 'none';
         popularMoviesPage = 1;
         popularTvShowsPage = 1;
         ui.renderPopularTvShows();
+    });
+
+    mobileWatchlistNavLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        mobileNavOverlay.classList.remove('active');
+        popularMoviesSection.style.display = 'none';
+        searchResultsSection.style.display = 'none';
+        popularTvShowsSection.style.display = 'none';
+        continueWatchingSection.style.display = 'none';
+        watchlistSection.style.display = 'block';
+        ui.renderListSection(watchlistGrid, storage.getWatchlist());
+    });
+
+    mobileContinueNavLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        mobileNavOverlay.classList.remove('active');
+        popularMoviesSection.style.display = 'none';
+        searchResultsSection.style.display = 'none';
+        popularTvShowsSection.style.display = 'none';
+        watchlistSection.style.display = 'none';
+        continueWatchingSection.style.display = 'block';
+        ui.renderListSection(continueWatchingGrid, storage.getContinueWatching());
     });
 
     // --- Notification Logic ---
@@ -827,6 +994,31 @@ document.addEventListener('DOMContentLoaded', () => {
         developerMessageModal.style.display = 'flex';
         ui.trapFocus(developerMessageModal);
     });
+    // Watchlist toggle click
+    watchlistToggle.addEventListener('click', () => {
+        if (!currentOpenImdbId) return;
+        const title = document.getElementById('modal-movie-title').textContent;
+        const poster = document.getElementById('modal-movie-poster').src;
+        const list = storage.getWatchlist();
+        const idx = list.findIndex(i => i.imdbID === currentOpenImdbId);
+        if (idx >= 0) {
+            list.splice(idx, 1);
+            storage.setWatchlist(list);
+            watchlistToggle.setAttribute('aria-pressed', 'false');
+            watchlistToggle.classList.remove('active');
+            watchlistToggle.querySelector('.watchlist-toggle-text').textContent = 'Add to Watchlist';
+        } else {
+            list.unshift({ imdbID: currentOpenImdbId, title, poster });
+            storage.setWatchlist(list.slice(0, 100));
+            watchlistToggle.setAttribute('aria-pressed', 'true');
+            watchlistToggle.classList.add('active');
+            watchlistToggle.querySelector('.watchlist-toggle-text').textContent = 'Remove from Watchlist';
+        }
+        // Refresh watchlist section if visible
+        ui.renderListSection(watchlistGrid, storage.getWatchlist());
+        watchlistSection.style.display = storage.getWatchlist().length ? 'block' : 'none';
+    });
+
 
     closeDeveloperMessageModal.addEventListener('click', () => {
         developerMessageModal.style.display = 'none';
@@ -852,6 +1044,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (savedTheme === 'light') {
             document.body.classList.add('light-mode');
             themeToggle.checked = true;
+        }
+
+        // Continue watching and watchlist
+        const continueList = storage.getContinueWatching();
+        if (continueList.length) {
+            continueWatchingSection.style.display = 'block';
+            ui.renderListSection(continueWatchingGrid, continueList);
+        }
+        const watchList = storage.getWatchlist();
+        if (watchList.length) {
+            watchlistSection.style.display = 'block';
+            ui.renderListSection(watchlistGrid, watchList);
         }
 
         ui.renderPopularMovies();

@@ -15,6 +15,8 @@ NowShowing is a simple, responsive movie streaming website that allows users to 
 *   **Video Modal:** Seamless video playback within a modal window with availability indicators, autoplay enabled, and comprehensive details including ratings (IMDb, Rotten Tomatoes, Metacritic), MPAA/TV rating, runtime, language, country, box office, production, and website. Improved performance and responsiveness for extended use by optimizing event listener management.
 *   **Accessibility Enhancements:** Improved keyboard navigation, focus management for modals, and added ARIA attributes for better screen reader compatibility.
 *   **Developer Message:** A dedicated button and modal to share a message from the developer, including contact information and GitHub profile.
+*   **Watchlist:** Save titles for later viewing; add/remove via modal toggle; persists in localStorage.
+*   **Continue Watching:** Quickly resume recently played movies and episodes; automatically updated when you switch sources.
 
 ## Technologies Used
 
@@ -47,6 +49,12 @@ This project includes a small backend component (a Vercel Serverless Function) t
     *   From the project root, run `vercel deploy`.
     *   Follow the prompts to deploy your project. Vercel will automatically detect the serverless function in the `api` directory.
 
+### Security & Performance
+
+*   API keys are kept server-side via serverless functions (`/api/*`).
+*   Content Security Policy and other security headers are set via `vercel.json`.
+*   Service Worker and Web App Manifest are included for basic offline caching and installability.
+
 ## Usage
 
 1.  **Search for a Movie:** Use the search bar in the navigation to find a movie. Type the movie title and press Enter or click the search button.
@@ -69,6 +77,8 @@ This project relies on third-party video embedding services. The availability an
 *   **Improved Search:** Add more advanced search filters (e.g., year, director).
 *   **More Robust Backend Checks:** Enhance the backend to perform deeper content analysis (e.g., parsing HTML for "unavailable" messages).
 *   **Backend Integration:** Develop a more comprehensive backend to manage movie data and user preferences more efficiently.
+*   **Trending Data:** Integrate TMDb for real trending lists while retaining OMDb for details.
+*   **Infinite Scroll & Filters:** Replace pagination with IntersectionObserver and add advanced filters (year, rating, type).
 
 ## Additional Documentation
 

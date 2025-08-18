@@ -28,6 +28,7 @@ export default async function handler(req, res) {
             source: article.source, // Source format is compatible
         }));
 
+        res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
         res.status(200).json({
             articles: adaptedArticles,
             totalResults: data.totalArticles, // Pass the total results count

@@ -4,7 +4,7 @@ This document outlines the API endpoints provided by the Vercel Serverless Funct
 
 ## 1. Video Availability Check API
 
-Checks the availability of a given video URL.
+Checks the availability of a given video URL. Tries a `HEAD` request with a 6s timeout; if blocked, falls back to a minimal `GET` with `Range: bytes=0-0`.
 
 *   **Endpoint:** `/api/check-video`
 *   **Method:** `POST`
@@ -21,6 +21,8 @@ Checks the availability of a given video URL.
         "available": boolean // `true` if the video is likely available, `false` otherwise
     }
     ```
+*   **Caching:**
+    * Responses are not cached. Use client-side caching if needed.
 *   **Error Responses:**
     *   **400 Bad Request:**
         ```json
@@ -71,6 +73,8 @@ Fetches news articles related to movies and TV shows.
         "totalResults": number // Total number of articles available (subject to GNews API free tier limitations)
     }
     ```
+*   **Caching:**
+    * Public CDN cache enabled: `Cache-Control: s-maxage=300, stale-while-revalidate=600`.
 *   **Error Responses:**
     *   **200 OK (with error in body):**
         ```json
@@ -93,6 +97,8 @@ Proxies requests to the OMDb API to protect the API key from client-side exposur
     *   `type`: `string` (Optional) - Type of result to return (`movie`, `series`, `episode`).
     *   `page`: `number` (Optional) - Page number for search results.
     *   `seasonNumber`: `number` (Optional) - Season number for TV series details.
+    *   `plot`: `string` (Optional) - Plot length (`short` or `full`).
+    *   `y`: `number` (Optional) - Year.
 *   **Success Response (200 OK):**
     (Returns the raw JSON response directly from the OMDb API. Refer to [OMDb API Documentation](http://www.omdbapi.com/) for full response schemas.)
     Example (Movie Details):
@@ -120,6 +126,8 @@ Proxies requests to the OMDb API to protect the API key from client-side exposur
             "error": "Failed to fetch data from OMDb API."
         }
         ```
+*   **Caching:**
+    * Public CDN cache enabled: `Cache-Control: s-maxage=300, stale-while-revalidate=600`.
         (Occurs if there's a network issue or other problem when the proxy tries to reach the OMDb API)
     *   **200 OK (with OMDb error in body):**
         (Returns the error response directly from the OMDb API)

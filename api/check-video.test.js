@@ -38,7 +38,13 @@ describe('check-video API', () => {
     );
 
     await handler(mockReq, mockRes);
-    expect(fetch).toHaveBeenCalledWith('http://example.com/video.mp4', { method: 'HEAD', headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NowShowing/1.0)' } });
+    expect(fetch).toHaveBeenCalledWith(
+      'http://example.com/video.mp4',
+      expect.objectContaining({
+        method: 'HEAD',
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NowShowing/1.0)' },
+      })
+    );
     expect(mockRes.status).toHaveBeenCalledWith(200);
     expect(mockRes.json).toHaveBeenCalledWith({ url: 'http://example.com/video.mp4', available: true });
   });
@@ -52,17 +58,46 @@ describe('check-video API', () => {
     );
 
     await handler(mockReq, mockRes);
-    expect(fetch).toHaveBeenCalledWith('http://example.com/video.mp4', { method: 'HEAD', headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NowShowing/1.0)' } });
+    expect(fetch).toHaveBeenCalledWith(
+      'http://example.com/video.mp4',
+      expect.objectContaining({
+        method: 'HEAD',
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NowShowing/1.0)' },
+      })
+    );
     expect(mockRes.status).toHaveBeenCalledWith(200);
     expect(mockRes.json).toHaveBeenCalledWith({ url: 'http://example.com/video.mp4', available: false });
   });
 
-  it('should return 200 with available: false and error message on fetch error', async () => {
+  it('should return 200 with available: false and error message on fetch error (HEAD then GET fallback)', async () => {
     const errorMessage = 'Network error';
-    fetch.mockImplementation(() => Promise.reject(new Error(errorMessage)));
+    fetch
+      .mockImplementationOnce(() => Promise.reject(new Error(errorMessage))) // HEAD fails
+      .mockImplementationOnce(() => Promise.reject(new Error(errorMessage))); // GET fallback fails
 
     await handler(mockReq, mockRes);
-    expect(fetch).toHaveBeenCalledWith('http://example.com/video.mp4', { method: 'HEAD', headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NowShowing/1.0)' } });
+
+    expect(fetch).toHaveBeenNthCalledWith(
+      1,
+      'http://example.com/video.mp4',
+      expect.objectContaining({
+        method: 'HEAD',
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NowShowing/1.0)' },
+      })
+    );
+
+    expect(fetch).toHaveBeenNthCalledWith(
+      2,
+      'http://example.com/video.mp4',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          'User-Agent': 'Mozilla/5.0 (compatible; NowShowing/1.0)',
+          'Range': 'bytes=0-0',
+        }),
+      })
+    );
+
     expect(mockRes.status).toHaveBeenCalledWith(200);
     expect(mockRes.json).toHaveBeenCalledWith({ url: 'http://example.com/video.mp4', available: false, error: `Network error: ${errorMessage}` });
   });
