@@ -126,8 +126,22 @@ document.addEventListener('DOMContentLoaded', () => {
         // Add cache-busting parameters to image URLs
         addCacheBuster(url) {
             if (!url || url === FALLBACK_POSTER) return url;
-            const separator = url.includes('?') ? '&' : '?';
-            return `${url}${separator}_cb=${this.cacheBuster}`;
+            
+            // Remove any existing cache buster parameters
+            let cleanUrl = url;
+            if (cleanUrl.includes('_cb=')) {
+                cleanUrl = cleanUrl.replace(/[?&]_cb=[^&]*/g, '');
+                // Clean up any double ? or & that might be left
+                cleanUrl = cleanUrl.replace(/\?&/, '?');
+                cleanUrl = cleanUrl.replace(/&&/, '&');
+                if (cleanUrl.endsWith('?') || cleanUrl.endsWith('&')) {
+                    cleanUrl = cleanUrl.slice(0, -1);
+                }
+            }
+            
+            // Add single cache buster
+            const separator = cleanUrl.includes('?') ? '&' : '?';
+            return `${cleanUrl}${separator}_cb=${this.cacheBuster}`;
         },
 
         // Force refresh cache buster
@@ -160,9 +174,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Track this image as loading
                 this.loadingImages.set(img, { src, retryCount, timestamp: Date.now() });
                 
-                // Add cache buster and force fresh load
-                const cacheBustedSrc = this.addCacheBuster(src);
-                img.src = cacheBustedSrc;
+                // Try different approaches for CSP-blocked images
+                if (retryCount === 0) {
+                    // First attempt: with cache buster
+                    const cacheBustedSrc = this.addCacheBuster(src);
+                    img.src = cacheBustedSrc;
+                } else if (retryCount === 1) {
+                    // Second attempt: without cache buster (in case CSP is blocking it)
+                    img.src = src;
+                } else if (retryCount === 2) {
+                    // Third attempt: try with different referrer policy
+                    img.referrerPolicy = 'no-referrer-when-downgrade';
+                    img.src = src;
+                }
                 
                 // Force browser to not use cached version
                 img.style.setProperty('--force-refresh', Date.now());
@@ -229,6 +253,31 @@ document.addEventListener('DOMContentLoaded', () => {
             this.failedImages.clear();
             this.loadingImages.clear();
             this.refreshCacheBuster();
+        },
+
+        // Clean up any existing images with multiple cache buster parameters
+        cleanupExistingImages() {
+            const allImages = document.querySelectorAll('img');
+            allImages.forEach(img => {
+                if (img.src && img.src.includes('_cb=')) {
+                    // Count cache buster parameters
+                    const cbMatches = img.src.match(/_cb=/g);
+                    if (cbMatches && cbMatches.length > 1) {
+                        // Clean up multiple cache busters
+                        let cleanSrc = img.src.replace(/[?&]_cb=[^&]*/g, '');
+                        cleanSrc = cleanSrc.replace(/\?&/, '?');
+                        cleanSrc = cleanSrc.replace(/&&/, '&');
+                        if (cleanSrc.endsWith('?') || cleanSrc.endsWith('&')) {
+                            cleanSrc = cleanSrc.slice(0, -1);
+                        }
+                        
+                        // Add single cache buster
+                        const separator = cleanSrc.includes('?') ? '&' : '?';
+                        img.src = `${cleanSrc}${separator}_cb=${this.cacheBuster}`;
+                        console.log('Cleaned up image URL with multiple cache busters:', img.src);
+                    }
+                }
+            });
         },
 
         // Get loading statistics
@@ -480,6 +529,27 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         },
 
+        // Handle CSP violations by trying alternative approaches
+        handleCSPViolation(img, src) {
+            console.log('Potential CSP violation detected, trying alternative approach for:', src);
+            
+            // Try without cache buster
+            if (img.src.includes('_cb=')) {
+                const cleanSrc = src.replace(/[?&]_cb=[^&]*/g, '');
+                img.src = cleanSrc;
+                return true;
+            }
+            
+            // Try with different referrer policy
+            if (img.referrerPolicy === 'no-referrer') {
+                img.referrerPolicy = 'no-referrer-when-downgrade';
+                img.src = src;
+                return true;
+            }
+            
+            return false;
+        },
+
         // Nuclear option: Force complete image refresh
         nuclearImageRefresh() {
             console.log('Nuclear image refresh initiated...');
@@ -523,9 +593,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const allImages = document.querySelectorAll('img');
             allImages.forEach(img => {
                 if (img.src && img.src !== FALLBACK_POSTER) {
-                    // Add timestamp and random cache buster
-                    const separator = img.src.includes('?') ? '&' : '?';
-                    const newSrc = `${img.src}${separator}_cb=${Date.now()}_${Math.random()}`;
+                    // Clean the URL first, then add single cache buster
+                    let cleanSrc = img.src;
+                    if (cleanSrc.includes('_cb=')) {
+                        cleanSrc = cleanSrc.replace(/[?&]_cb=[^&]*/g, '');
+                        cleanSrc = cleanSrc.replace(/\?&/, '?');
+                        cleanSrc = cleanSrc.replace(/&&/, '&');
+                        if (cleanSrc.endsWith('?') || cleanSrc.endsWith('&')) {
+                            cleanSrc = cleanSrc.slice(0, -1);
+                        }
+                    }
+                    
+                    // Add single timestamp cache buster
+                    const separator = cleanSrc.includes('?') ? '&' : '?';
+                    const newSrc = `${cleanSrc}${separator}_cb=${Date.now()}`;
                     img.src = newSrc;
                     
                     // Force browser to not use cache
@@ -1524,6 +1605,9 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.renderPopularMovies();
         ui.renderNews();
         
+        // Clean up any existing images with multiple cache busters
+        imageLoader.cleanupExistingImages();
+        
         // Force image refresh after initial render to ensure fresh loads
         setTimeout(() => {
             console.log('Initial render complete, forcing image refresh...');
@@ -1588,12 +1672,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 30000); // Check every 30 seconds
 
+    // Global error handler for CSP violations
+    window.addEventListener('error', (event) => {
+        if (event.error && event.error.message && event.error.message.includes('CSP')) {
+            console.log('CSP violation detected, attempting to handle...');
+            // This will help us identify CSP issues
+        }
+    });
+
+    // Global unhandled rejection handler
+    window.addEventListener('unhandledrejection', (event) => {
+        if (event.reason && event.reason.message && event.reason.message.includes('CSP')) {
+            console.log('Unhandled CSP rejection detected');
+            event.preventDefault();
+        }
+    });
+
     init();
     
     // Log image loading system status
     console.log('NowShowing Image Loading System initialized with:');
     console.log('- Robust image loader with retry logic and cache busting');
     console.log('- Service worker cache v4 (aggressively excludes images)');
+    console.log('- CSP violation detection and handling');
+    console.log('- URL cleanup for multiple cache busters');
     console.log('- Auto-refresh on page visibility change');
     console.log('- Auto-refresh on network recovery');
     console.log('- Periodic health checks every 30s');
