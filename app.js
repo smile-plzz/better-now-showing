@@ -108,6 +108,115 @@ document.addEventListener('DOMContentLoaded', () => {
 <g fill="%23777" font-family="Arial,Helvetica,sans-serif" text-anchor="middle">\
 <text x="200" y="300" font-size="28">No Image</text>\
 </g></svg>';
+
+    // --- IMAGE LOADING UTILITY ---
+    const imageLoader = {
+        // Track failed images to avoid infinite retry loops
+        failedImages: new Set(),
+        // Track loading images to show loading states
+        loadingImages: new Map(),
+        // Maximum retry attempts for failed images
+        maxRetries: 3,
+        // Retry delay in milliseconds
+        retryDelay: 1000,
+
+        // Create a robust image element with retry logic
+        createRobustImage(src, alt, options = {}) {
+            const img = document.createElement('img');
+            img.alt = alt;
+            img.loading = options.loading || 'lazy';
+            img.referrerPolicy = 'no-referrer';
+            
+            // Add loading class for visual feedback
+            img.classList.add('image-loading');
+            
+            // Set up retry logic
+            let retryCount = 0;
+            const attemptLoad = () => {
+                if (this.failedImages.has(src)) {
+                    // Image has failed too many times, use fallback
+                    img.src = FALLBACK_POSTER;
+                    img.classList.remove('image-loading', 'image-error');
+                    img.classList.add('image-fallback');
+                    return;
+                }
+
+                // Track this image as loading
+                this.loadingImages.set(img, { src, retryCount, timestamp: Date.now() });
+                
+                img.src = src;
+            };
+
+            // Handle successful load
+            img.onload = () => {
+                img.classList.remove('image-loading', 'image-error');
+                img.classList.add('image-loaded');
+                this.loadingImages.delete(img);
+                
+                // Remove from failed images if it was there
+                this.failedImages.delete(src);
+            };
+
+            // Handle load errors with retry logic
+            img.onerror = () => {
+                img.classList.remove('image-loading');
+                img.classList.add('image-error');
+                
+                const loadingInfo = this.loadingImages.get(img);
+                if (loadingInfo) {
+                    retryCount = loadingInfo.retryCount + 1;
+                    this.loadingImages.delete(img);
+                }
+
+                if (retryCount < this.maxRetries) {
+                    // Retry with exponential backoff
+                    const delay = this.retryDelay * Math.pow(2, retryCount - 1);
+                    console.log(`Image load failed for ${src}, retrying in ${delay}ms (attempt ${retryCount + 1}/${this.maxRetries})`);
+                    
+                    setTimeout(() => {
+                        attemptLoad();
+                    }, delay);
+                } else {
+                    // Max retries reached, use fallback
+                    console.warn(`Image failed to load after ${this.maxRetries} attempts: ${src}`);
+                    this.failedImages.add(src);
+                    img.src = FALLBACK_POSTER;
+                    img.classList.remove('image-error');
+                    img.classList.add('image-fallback');
+                }
+            };
+
+            // Start loading
+            attemptLoad();
+            
+            return img;
+        },
+
+        // Preload an image to check availability
+        async preloadImage(src) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => resolve(true);
+                img.onerror = () => resolve(false);
+                img.src = src;
+            });
+        },
+
+        // Clear failed images cache (useful for refresh scenarios)
+        clearFailedCache() {
+            this.failedImages.clear();
+            this.loadingImages.clear();
+        },
+
+        // Get loading statistics
+        getStats() {
+            return {
+                failed: this.failedImages.size,
+                loading: this.loadingImages.size,
+                failedUrls: Array.from(this.failedImages)
+            };
+        }
+    };
     const api = {
         async checkVideoAvailability(url) {
             console.log(`[checkVideoAvailability] Checking URL: ${url}`);
