@@ -1447,9 +1447,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('visibilitychange', () => {
         if (!document.hidden) {
             // Page is visible again, check if we need to refresh images
-            const stats = imageLoader.getImageStats(); // This function is no longer relevant
-            if (stats.failed > 0) { // This function is no longer relevant
-                console.log(`Page became visible with ${stats.failed} failed images, refreshing...`);
+            const errorImages = document.querySelectorAll('.image-error');
+            if (errorImages.length > 0) {
+                console.log(`Page became visible with ${errorImages.length} error images, refreshing...`);
                 // Small delay to ensure page is fully loaded
                 setTimeout(() => {
                     ui.refreshImages();
@@ -1476,28 +1476,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.refreshImages();
         }
     });
-
-    // --- PERIODIC IMAGE HEALTH CHECK ---
-    // Check for stuck images every 30 seconds and refresh if needed
-    setInterval(() => {
-        const stats = imageLoader.getImageStats(); // This function is no longer relevant
-        if (stats.loading > 0) { // This function is no longer relevant
-            // Check if any images have been loading for too long (over 10 seconds)
-            const now = Date.now();
-            let stuckImages = 0;
-            
-            // imageLoader.loadingImages.forEach((info, img) => { // This function is no longer relevant
-            //     if (now - info.timestamp > 10000) { // 10 seconds
-            //         stuckImages++;
-            //     }
-            // });
-            
-            // if (stuckImages > 0) {
-            //     console.log(`Found ${stuckImages} stuck images, refreshing...`);
-            //     ui.refreshImages();
-            // }
-        }
-    }, 30000); // Check every 30 seconds
 
     // Global error handler for CSP violations
     window.addEventListener('error', (event) => {
