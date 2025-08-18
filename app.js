@@ -120,6 +120,21 @@ document.addEventListener('DOMContentLoaded', () => {
         maxRetries: 3,
         // Retry delay in milliseconds
         retryDelay: 1000,
+        // Cache buster timestamp
+        cacheBuster: Date.now(),
+
+        // Add cache-busting parameters to image URLs
+        addCacheBuster(url) {
+            if (!url || url === FALLBACK_POSTER) return url;
+            const separator = url.includes('?') ? '&' : '?';
+            return `${url}${separator}_cb=${this.cacheBuster}`;
+        },
+
+        // Force refresh cache buster
+        refreshCacheBuster() {
+            this.cacheBuster = Date.now();
+            console.log('Cache buster refreshed:', this.cacheBuster);
+        },
 
         // Create a robust image element with retry logic
         createRobustImage(src, alt, options = {}) {
@@ -145,7 +160,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Track this image as loading
                 this.loadingImages.set(img, { src, retryCount, timestamp: Date.now() });
                 
-                img.src = src;
+                // Add cache buster and force fresh load
+                const cacheBustedSrc = this.addCacheBuster(src);
+                img.src = cacheBustedSrc;
+                
+                // Force browser to not use cached version
+                img.style.setProperty('--force-refresh', Date.now());
             };
 
             // Handle successful load
@@ -199,7 +219,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const img = new Image();
                 img.onload = () => resolve(true);
                 img.onerror = () => resolve(false);
-                img.src = src;
+                // Add cache buster for preload too
+                img.src = this.addCacheBuster(src);
             });
         },
 
@@ -207,6 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clearFailedCache() {
             this.failedImages.clear();
             this.loadingImages.clear();
+            this.refreshCacheBuster();
         },
 
         // Get loading statistics
@@ -214,7 +236,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return {
                 failed: this.failedImages.size,
                 loading: this.loadingImages.size,
-                failedUrls: Array.from(this.failedImages)
+                failedUrls: Array.from(this.failedImages),
+                cacheBuster: this.cacheBuster
             };
         }
     };
@@ -364,10 +387,17 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshImages() {
             console.log('Refreshing all images...');
             
-            // Clear failed images cache
+            // Clear failed images cache and refresh cache buster
             imageLoader.clearFailedCache();
             
-            // Force refresh all movie cards
+            // Force service worker to clear any cached image responses
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({
+                    type: 'CLEAR_IMAGE_CACHE'
+                });
+            }
+            
+            // Force refresh all movie cards with aggressive reload
             const allMovieCards = document.querySelectorAll('.movie-card');
             allMovieCards.forEach(card => {
                 const img = card.querySelector('img');
@@ -377,34 +407,144 @@ document.addEventListener('DOMContentLoaded', () => {
                     const oldImg = imageContainer.querySelector('img');
                     const movieTitle = card.querySelector('.movie-card-title').textContent;
                     
-                    // Create new robust image
-                    const newImg = imageLoader.createRobustImage(oldImg.src, movieTitle, {
+                    // Force remove the old image completely
+                    oldImg.remove();
+                    
+                    // Create new robust image with fresh cache buster
+                    const newImg = imageLoader.createRobustImage(img.src, movieTitle, {
                         loading: 'lazy'
                     });
                     
-                    // Replace old image
-                    imageContainer.replaceChild(newImg, oldImg);
+                    // Add the new image
+                    imageContainer.appendChild(newImg);
                 }
             });
 
-            // Force refresh news images
+            // Force refresh news images with aggressive reload
             const allNewsCards = document.querySelectorAll('.news-card img');
             allNewsCards.forEach(img => {
                 if (img.src !== FALLBACK_POSTER) {
                     const newsCard = img.closest('.news-card');
                     const title = newsCard.querySelector('.news-card-title').textContent;
                     
-                    // Create new robust image
+                    // Force remove the old image completely
+                    img.remove();
+                    
+                    // Create new robust image with fresh cache buster
                     const newImg = imageLoader.createRobustImage(img.src, title, {
                         loading: 'lazy'
                     });
                     
-                    // Replace old image
-                    newsCard.replaceChild(newImg, img);
+                    // Add the new image
+                    newsCard.appendChild(newImg);
                 }
             });
 
-            console.log('Image refresh completed');
+            // Force browser to clear any image cache
+            if ('caches' in window) {
+                caches.keys().then(keys => {
+                    keys.forEach(key => {
+                        if (key !== 'nowshowing-v4') {
+                            caches.delete(key);
+                        }
+                    });
+                });
+            }
+
+            console.log('Image refresh completed with cache busting');
+        },
+
+        // Force refresh images on page load/visibility change
+        forceImageRefresh() {
+            console.log('Forcing image refresh on page load...');
+            
+            // Small delay to ensure DOM is ready
+            setTimeout(() => {
+                this.refreshImages();
+            }, 100);
+        },
+
+        // Check if images are stuck in loading state
+        checkStuckImages() {
+            const stuckImages = [];
+            imageLoader.loadingImages.forEach((info, img) => {
+                const timeSinceStart = Date.now() - info.timestamp;
+                if (timeSinceStart > 10000) { // 10 seconds
+                    stuckImages.push({ img, info });
+                }
+            });
+            
+            if (stuckImages.length > 0) {
+                console.log(`Found ${stuckImages.length} stuck images, refreshing...`);
+                this.refreshImages();
+            }
+        },
+
+        // Nuclear option: Force complete image refresh
+        nuclearImageRefresh() {
+            console.log('Nuclear image refresh initiated...');
+            
+            // Clear all caches
+            imageLoader.clearFailedCache();
+            
+            // Force service worker to clear everything
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({
+                    type: 'CLEAR_IMAGE_CACHE'
+                });
+            }
+            
+            // Clear browser caches
+            if ('caches' in window) {
+                caches.keys().then(keys => {
+                    keys.forEach(key => {
+                        if (key !== 'nowshowing-v4') {
+                            console.log('Deleting cache:', key);
+                            caches.delete(key);
+                        }
+                    });
+                });
+            }
+            
+            // Clear any stored image data
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.includes('image') || key.includes('cache') || key.includes('poster'))) {
+                    keysToRemove.push(key);
+                }
+            }
+            keysToRemove.forEach(key => {
+                localStorage.removeItem(key);
+                console.log('Removed localStorage key:', key);
+            });
+            
+            // Force reload all images with aggressive cache busting
+            const allImages = document.querySelectorAll('img');
+            allImages.forEach(img => {
+                if (img.src && img.src !== FALLBACK_POSTER) {
+                    // Add timestamp and random cache buster
+                    const separator = img.src.includes('?') ? '&' : '?';
+                    const newSrc = `${img.src}${separator}_cb=${Date.now()}_${Math.random()}`;
+                    img.src = newSrc;
+                    
+                    // Force browser to not use cache
+                    img.style.setProperty('--force-refresh', Date.now());
+                }
+            });
+            
+            // Force page reload after a short delay if still having issues
+            setTimeout(() => {
+                const stats = imageLoader.getStats();
+                if (stats.failed > 0) {
+                    console.log('Nuclear refresh completed but images still failing, suggesting page reload');
+                    if (confirm('Images still not loading. Would you like to reload the page?')) {
+                        window.location.reload(true);
+                    }
+                }
+            }, 3000);
+            
+            console.log('Nuclear image refresh completed');
         },
 
         // Get image loading statistics
@@ -1280,25 +1420,42 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.trapFocus(developerMessageModal);
     });
 
-    // Refresh images button
+    // Refresh images button click
     refreshImagesButton.addEventListener('click', () => {
-        // Add loading state to button
         const icon = refreshImagesButton.querySelector('i');
         icon.classList.add('fa-spin');
         
-        // Refresh images
+        // Regular refresh
         ui.refreshImages();
         
-        // Remove loading state after a short delay
         setTimeout(() => {
             icon.classList.remove('fa-spin');
-        }, 1000);
+        }, 2000);
     });
 
     // Double-click refresh button to show image status
     refreshImagesButton.addEventListener('dblclick', (e) => {
         e.preventDefault();
         ui.showImageStatus();
+    });
+
+    // Triple-click for nuclear refresh
+    let clickCount = 0;
+    let clickTimer;
+    refreshImagesButton.addEventListener('click', () => {
+        clickCount++;
+        clearTimeout(clickTimer);
+        
+        clickTimer = setTimeout(() => {
+            if (clickCount === 3) {
+                console.log('Triple-click detected - initiating nuclear refresh');
+                ui.nuclearImageRefresh();
+                clickCount = 0;
+            } else if (clickCount === 1) {
+                // Single click handled by separate listener
+                clickCount = 0;
+            }
+        }, 300);
     });
     // Watchlist toggle click
     watchlistToggle.addEventListener('click', () => {
@@ -1366,6 +1523,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ui.renderPopularMovies();
         ui.renderNews();
+        
+        // Force image refresh after initial render to ensure fresh loads
+        setTimeout(() => {
+            console.log('Initial render complete, forcing image refresh...');
+            ui.forceImageRefresh();
+        }, 2000);
     };
 
     // --- PAGE VISIBILITY HANDLING ---
@@ -1429,11 +1592,13 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Log image loading system status
     console.log('NowShowing Image Loading System initialized with:');
-    console.log('- Robust image loader with retry logic');
-    console.log('- Service worker cache v3 (excludes images)');
+    console.log('- Robust image loader with retry logic and cache busting');
+    console.log('- Service worker cache v4 (aggressively excludes images)');
     console.log('- Auto-refresh on page visibility change');
     console.log('- Auto-refresh on network recovery');
     console.log('- Periodic health checks every 30s');
     console.log('- Manual refresh button (click to refresh, double-click for status)');
+    console.log('- Nuclear refresh option (triple-click for complete cache clear)');
     console.log('- Keyboard shortcut: Ctrl+R/Cmd+R to refresh images');
+    console.log('- Automatic image refresh on page load');
 });

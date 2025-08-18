@@ -1006,14 +1006,25 @@ main {
     cursor: pointer;
     margin-left: 1rem;
     transition: color 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
 }
 
 .refresh-images-button:hover {
     color: var(--primary-color);
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .refresh-images-button .fa-spin {
     animation: spin 1s linear infinite;
+}
+
+.refresh-images-button .refresh-text {
+    font-size: 0.9rem;
+    font-weight: 500;
 }
 
 @keyframes spin {
