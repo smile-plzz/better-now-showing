@@ -84,7 +84,21 @@ document.addEventListener('DOMContentLoaded', () => {
         { name: '2Embed', url: 'https://2embed.cc/embed/', tvUrl: 'https://2embed.cc/embed/' },
         { name: 'Fmovies', url: 'https://fmovies.to/embed/', tvUrl: 'https://fmovies.to/embed/' },
         { name: 'LookMovie', url: 'https://lookmovie.io/player/', tvUrl: 'https://lookmovie.io/player/' },
+        { name: 'AutoEmbed', url: 'https://autoembed.cc/embed/', tvUrl: 'https://autoembed.cc/embed/' },
+        { name: 'MultiEmbed', url: 'https://multiembed.mov/?video_id=', tvUrl: 'https://multiembed.mov/?video_id=' },
     ];
+
+    // Merge custom sources from localStorage (optional): [{ name, url, tvUrl }]
+    try {
+        const custom = JSON.parse(localStorage.getItem('ns_custom_sources') || '[]');
+        if (Array.isArray(custom)) {
+            custom.forEach(src => {
+                if (src && src.name && (src.url || src.tvUrl)) {
+                    videoSources.push({ name: String(src.name), url: src.url || null, tvUrl: src.tvUrl || null });
+                }
+            });
+        }
+    } catch { /* ignore */ }
 
     // --- API CALLS ---
     const FALLBACK_POSTER = 'data:image/svg+xml;utf8,\
@@ -837,6 +851,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     url = `${baseUrl}tv/${imdbID}/season/${season}/episode/${episode}`;
                 } else if (source.name === 'LookMovie') {
                     url = `${baseUrl}tv/${imdbID}/season/${season}/episode/${episode}`;
+                } else if (source.name === 'AutoEmbed') {
+                    url = `${baseUrl}imdb/tv?id=${imdbID}&s=${season}&e=${episode}`;
+                } else if (source.name === 'MultiEmbed') {
+                    // base already has ?video_id=
+                    url = `${baseUrl}${imdbID}&s=${season}&e=${episode}`;
                 } else {
                     // Generic fallback for other TV show sources
                     url = `${baseUrl}${imdbID}-S${season}E${episode}`;
