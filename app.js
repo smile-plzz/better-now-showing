@@ -428,6 +428,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         async renderSearchResults(query, append = false) {
             currentSearchQuery = query;
+            if (!query || query.length < 2) {
+                this.showSearchView();
+                this.displayError('Please enter at least 2 characters to search.', searchResultsGrid);
+                return;
+            }
             if (!append) {
                 searchResultsPage = 1;
                 this.showSearchView();
@@ -623,9 +628,22 @@ document.addEventListener('DOMContentLoaded', () => {
                         button.classList.add('is-available');
                     } else {
                         button.classList.add('is-unavailable');
+                        const isActive = button.classList.contains('active');
+                        if (isActive) {
+                            const next = Array.from(document.querySelectorAll('.source-button')).find(b => !b.isSameNode(button) && !b.classList.contains('is-unavailable'));
+                            if (next) next.click();
+                        }
                     }
                 });
             }
+
+            setTimeout(() => {
+                const activeBtn = document.querySelector('.source-button.active');
+                if (activeBtn && activeBtn.classList.contains('is-unavailable')) {
+                    const next = Array.from(document.querySelectorAll('.source-button')).find(b => !b.classList.contains('is-unavailable'));
+                    if (next) next.click();
+                }
+            }, 6000);
         },
 
         async loadVideoForSelectedEpisode(imdbID) {
@@ -681,9 +699,22 @@ document.addEventListener('DOMContentLoaded', () => {
                         button.classList.add('is-available');
                     } else {
                         button.classList.add('is-unavailable');
+                        const isActive = button.classList.contains('active');
+                        if (isActive) {
+                            const next = Array.from(document.querySelectorAll('.source-button')).find(b => !b.isSameNode(button) && !b.classList.contains('is-unavailable'));
+                            if (next) next.click();
+                        }
                     }
                 });
             }
+
+            setTimeout(() => {
+                const activeBtn = document.querySelector('.source-button.active');
+                if (activeBtn && activeBtn.classList.contains('is-unavailable')) {
+                    const next = Array.from(document.querySelectorAll('.source-button')).find(b => !b.classList.contains('is-unavailable'));
+                    if (next) next.click();
+                }
+            }, 6000);
         },
 
         closeVideoModal() {
