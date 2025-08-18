@@ -87,6 +87,13 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     // --- API CALLS ---
+    const FALLBACK_POSTER = 'data:image/svg+xml;utf8,\
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600">\
+<defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="%230f0f14"/><stop offset="1" stop-color="%231a1a22"/></linearGradient></defs>\
+<rect width="400" height="600" fill="url(%23g)"/>\
+<g fill="%23777" font-family="Arial,Helvetica,sans-serif" text-anchor="middle">\
+<text x="200" y="300" font-size="28">No Image</text>\
+</g></svg>';
     const api = {
         async checkVideoAvailability(url) {
             console.log(`[checkVideoAvailability] Checking URL: ${url}`);
@@ -241,6 +248,8 @@ document.addEventListener('DOMContentLoaded', () => {
             img.src = movie.Poster;
             img.alt = movie.Title;
             img.loading = 'lazy';
+            img.referrerPolicy = 'no-referrer';
+            img.onerror = () => { img.onerror = null; img.src = FALLBACK_POSTER; };
 
             const playIcon = document.createElement('i');
             playIcon.className = 'fas fa-play play-icon';
@@ -248,6 +257,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
             imageContainer.appendChild(img);
             imageContainer.appendChild(playIcon);
+
+            // Optional badges: type and resume (if exists)
+            if (movie.Type) {
+                const typeBadge = document.createElement('div');
+                typeBadge.className = 'movie-badge';
+                typeBadge.textContent = movie.Type === 'series' ? 'Series' : 'Movie';
+                imageContainer.appendChild(typeBadge);
+            }
+
+            const resumeEntry = storage.getContinueWatching().find(e => e.imdbID === movie.imdbID);
+            if (resumeEntry) {
+                const resumeBadge = document.createElement('div');
+                resumeBadge.className = 'resume-badge';
+                resumeBadge.textContent = 'Continue';
+                imageContainer.appendChild(resumeBadge);
+            }
 
             const body = document.createElement('div');
             body.className = 'movie-card-body';
@@ -333,8 +358,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const moviePromises = titlesToLoad.map(title => api.fetchMovieByTitle(title, 'movie'));
             const movies = await Promise.all(moviePromises);
-
-            this.renderMovieGrid(popularMoviesGrid, movies, append, loadMorePopularButton, popularMoviesPage, popularTitles.length);
+            const valid = movies.filter(m => m && m.Response !== 'False' && m.Poster && m.Poster !== 'N/A');
+            if (valid.length === 0 && !append) {
+                popularMoviesGrid.innerHTML = '<p class="error-message">Unable to load movies right now. Please try again shortly.</p>';
+                loadMorePopularButton.style.display = 'none';
+                return;
+            }
+            this.renderMovieGrid(popularMoviesGrid, valid, append, loadMorePopularButton, popularMoviesPage, popularTitles.length);
         },
 
         async renderPopularTvShows(append = false) {
@@ -358,8 +388,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const showPromises = titlesToLoad.map(title => api.fetchMovieByTitle(title, 'series'));
             const shows = await Promise.all(showPromises);
-
-            this.renderMovieGrid(popularTvShowsGrid, shows, append, loadMorePopularTvButton, popularTvShowsPage, popularTitles.length);
+            const valid = shows.filter(s => s && s.Response !== 'False' && s.Poster && s.Poster !== 'N/A');
+            if (valid.length === 0 && !append) {
+                popularTvShowsGrid.innerHTML = '<p class="error-message">Unable to load TV shows right now. Please try again shortly.</p>';
+                loadMorePopularTvButton.style.display = 'none';
+                return;
+            }
+            this.renderMovieGrid(popularTvShowsGrid, valid, append, loadMorePopularTvButton, popularTvShowsPage, popularTitles.length);
         },
 
         async renderNews(append = false) {
@@ -388,6 +423,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         img.src = article.urlToImage || '';
                         img.alt = article.title;
                         img.loading = 'lazy';
+                        img.referrerPolicy = 'no-referrer';
+                        img.onerror = () => { img.onerror = null; img.src = FALLBACK_POSTER; };
 
                         const body = document.createElement('div');
                         body.className = 'news-card-body';
@@ -466,6 +503,13 @@ document.addEventListener('DOMContentLoaded', () => {
             loadMorePopularButton.style.display = 'block'; // Ensure it's visible on home view
             popularMoviesPage = 1; // Reset popular movies page
             this.renderPopularMovies(); // Re-render popular movies from start
+            // Render continue and watchlist if present
+            const cw = storage.getContinueWatching();
+            continueWatchingSection.style.display = cw.length ? 'block' : 'none';
+            if (cw.length) this.renderListSection(continueWatchingGrid, cw);
+            const wl = storage.getWatchlist();
+            watchlistSection.style.display = wl.length ? 'block' : 'none';
+            if (wl.length) this.renderListSection(watchlistGrid, wl);
         },
         showSearchView() {
             popularMoviesSection.style.display = 'none';
@@ -502,7 +546,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         otherRatingsContainer.appendChild(p);
                     });
                 }
-                document.getElementById('modal-movie-poster').src = details.Poster;
+                const modalPoster = document.getElementById('modal-movie-poster');
+                modalPoster.src = details.Poster && details.Poster !== 'N/A' ? details.Poster : FALLBACK_POSTER;
+                modalPoster.alt = `${details.Title} Poster`;
                 document.getElementById('modal-movie-director').textContent = details.Director;
                 document.getElementById('modal-movie-writer').textContent = details.Writer;
                 document.getElementById('modal-movie-actors').textContent = details.Actors;
