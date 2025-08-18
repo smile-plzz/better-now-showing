@@ -462,6 +462,28 @@ main {
     transform: scale(1.06);
 }
 
+/* Image loading states */
+.image-loading {
+    opacity: 0.7;
+    filter: grayscale(20%);
+    transition: opacity 0.3s ease, filter 0.3s ease;
+}
+
+.image-loaded {
+    opacity: 1;
+    filter: none;
+}
+
+.image-error {
+    opacity: 0.5;
+    filter: grayscale(50%);
+}
+
+.image-fallback {
+    opacity: 1;
+    filter: none;
+}
+
 .movie-card-body {
     position: absolute;
     left: 0;
@@ -874,7 +896,8 @@ main {
     }
 
     .notification-button,
-    .developer-message-button {
+    .developer-message-button,
+    .refresh-images-button {
         margin-left: 0.8rem;
     }
 
@@ -973,6 +996,46 @@ main {
 
 .developer-message-button:hover {
     color: var(--primary-color);
+}
+
+.refresh-images-button {
+    background: none;
+    border: none;
+    color: var(--text-color);
+    font-size: 1.5rem;
+    cursor: pointer;
+    margin-left: 1rem;
+    transition: color 0.2s ease;
+}
+
+.refresh-images-button:hover {
+    color: var(--primary-color);
+}
+
+.refresh-images-button .fa-spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Image status notification */
+.image-status-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    z-index: 10000;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
 }
 
 /* --- Notification Modal --- */

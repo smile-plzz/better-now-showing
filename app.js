@@ -53,6 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const developerMessageButton = document.getElementById('developer-message-button');
     const developerMessageModal = document.getElementById('developer-message-modal');
     const closeDeveloperMessageModal = document.getElementById('close-developer-message-modal');
+    const refreshImagesButton = document.getElementById('refresh-images-button');
 
     // Note: The opening mechanism for switchSourceNotificationModal (setting display: 'flex')
     // is not explicitly found in app.js. Ensure that wherever this modal is opened,
@@ -358,6 +359,90 @@ document.addEventListener('DOMContentLoaded', () => {
             loadMorePopularButton.style.display = 'none';
             loadMoreSearchButton.style.display = 'none';
         },
+
+        // Refresh all images in the current view
+        refreshImages() {
+            console.log('Refreshing all images...');
+            
+            // Clear failed images cache
+            imageLoader.clearFailedCache();
+            
+            // Force refresh all movie cards
+            const allMovieCards = document.querySelectorAll('.movie-card');
+            allMovieCards.forEach(card => {
+                const img = card.querySelector('img');
+                if (img && img.src !== FALLBACK_POSTER) {
+                    // Remove old image and create new one
+                    const imageContainer = card.querySelector('.movie-card-image-container');
+                    const oldImg = imageContainer.querySelector('img');
+                    const movieTitle = card.querySelector('.movie-card-title').textContent;
+                    
+                    // Create new robust image
+                    const newImg = imageLoader.createRobustImage(oldImg.src, movieTitle, {
+                        loading: 'lazy'
+                    });
+                    
+                    // Replace old image
+                    imageContainer.replaceChild(newImg, oldImg);
+                }
+            });
+
+            // Force refresh news images
+            const allNewsCards = document.querySelectorAll('.news-card img');
+            allNewsCards.forEach(img => {
+                if (img.src !== FALLBACK_POSTER) {
+                    const newsCard = img.closest('.news-card');
+                    const title = newsCard.querySelector('.news-card-title').textContent;
+                    
+                    // Create new robust image
+                    const newImg = imageLoader.createRobustImage(img.src, title, {
+                        loading: 'lazy'
+                    });
+                    
+                    // Replace old image
+                    newsCard.replaceChild(newImg, img);
+                }
+            });
+
+            console.log('Image refresh completed');
+        },
+
+        // Get image loading statistics
+        getImageStats() {
+            return imageLoader.getStats();
+        },
+
+        // Show image loading status to user
+        showImageStatus() {
+            const stats = imageLoader.getStats();
+            const message = `Images: ${stats.loading} loading, ${stats.failed} failed`;
+            console.log(message);
+            
+            // Show a temporary notification
+            const notification = document.createElement('div');
+            notification.className = 'image-status-notification';
+            notification.textContent = message;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: rgba(0, 0, 0, 0.8);
+                color: white;
+                padding: 10px 15px;
+                border-radius: 5px;
+                z-index: 10000;
+                font-size: 14px;
+                transition: opacity 0.3s ease;
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        },
         createMovieCard(movie) {
             if (!movie || !movie.Poster || movie.Poster === 'N/A') return null;
 
@@ -367,12 +452,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const imageContainer = document.createElement('div');
             imageContainer.className = 'movie-card-image-container';
 
-            const img = document.createElement('img');
-            img.src = movie.Poster;
-            img.alt = movie.Title;
-            img.loading = 'lazy';
-            img.referrerPolicy = 'no-referrer';
-            img.onerror = () => { img.onerror = null; img.src = FALLBACK_POSTER; };
+            // Use robust image loader with retry logic
+            const img = imageLoader.createRobustImage(movie.Poster, movie.Title, {
+                loading: 'lazy'
+            });
 
             const playIcon = document.createElement('i');
             playIcon.className = 'fas fa-play play-icon';
@@ -542,12 +625,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         newsCard.target = '_blank';
                         newsCard.rel = 'noopener noreferrer';
 
-                        const img = document.createElement('img');
-                        img.src = article.urlToImage || '';
-                        img.alt = article.title;
-                        img.loading = 'lazy';
-                        img.referrerPolicy = 'no-referrer';
-                        img.onerror = () => { img.onerror = null; img.src = FALLBACK_POSTER; };
+                        const img = imageLoader.createRobustImage(article.urlToImage || '', article.title, {
+                            loading: 'lazy'
+                        });
 
                         const body = document.createElement('div');
                         body.className = 'news-card-body';
@@ -1199,6 +1279,27 @@ document.addEventListener('DOMContentLoaded', () => {
         developerMessageModal.style.display = 'flex';
         ui.trapFocus(developerMessageModal);
     });
+
+    // Refresh images button
+    refreshImagesButton.addEventListener('click', () => {
+        // Add loading state to button
+        const icon = refreshImagesButton.querySelector('i');
+        icon.classList.add('fa-spin');
+        
+        // Refresh images
+        ui.refreshImages();
+        
+        // Remove loading state after a short delay
+        setTimeout(() => {
+            icon.classList.remove('fa-spin');
+        }, 1000);
+    });
+
+    // Double-click refresh button to show image status
+    refreshImagesButton.addEventListener('dblclick', (e) => {
+        e.preventDefault();
+        ui.showImageStatus();
+    });
     // Watchlist toggle click
     watchlistToggle.addEventListener('click', () => {
         if (!currentOpenImdbId) return;
@@ -1267,5 +1368,72 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.renderNews();
     };
 
+    // --- PAGE VISIBILITY HANDLING ---
+    // Refresh images when page becomes visible again (e.g., after tab switch)
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            // Page is visible again, check if we need to refresh images
+            const stats = imageLoader.getStats();
+            if (stats.failed > 0) {
+                console.log(`Page became visible with ${stats.failed} failed images, refreshing...`);
+                // Small delay to ensure page is fully loaded
+                setTimeout(() => {
+                    ui.refreshImages();
+                }, 500);
+            }
+        }
+    });
+
+    // --- NETWORK STATUS HANDLING ---
+    // Refresh images when network comes back online
+    window.addEventListener('online', () => {
+        console.log('Network is back online, refreshing images...');
+        setTimeout(() => {
+            ui.refreshImages();
+        }, 1000);
+    });
+
+    // --- KEYBOARD SHORTCUTS ---
+    // Ctrl+R or Cmd+R to refresh images
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+            e.preventDefault(); // Prevent browser refresh
+            console.log('Image refresh shortcut triggered');
+            ui.refreshImages();
+        }
+    });
+
+    // --- PERIODIC IMAGE HEALTH CHECK ---
+    // Check for stuck images every 30 seconds and refresh if needed
+    setInterval(() => {
+        const stats = imageLoader.getStats();
+        if (stats.loading > 0) {
+            // Check if any images have been loading for too long (over 10 seconds)
+            const now = Date.now();
+            let stuckImages = 0;
+            
+            imageLoader.loadingImages.forEach((info, img) => {
+                if (now - info.timestamp > 10000) { // 10 seconds
+                    stuckImages++;
+                }
+            });
+            
+            if (stuckImages > 0) {
+                console.log(`Found ${stuckImages} stuck images, refreshing...`);
+                ui.refreshImages();
+            }
+        }
+    }, 30000); // Check every 30 seconds
+
     init();
+    
+    // Log image loading system status
+    console.log('NowShowing Image Loading System initialized with:');
+    console.log('- Robust image loader with retry logic');
+    console.log('- Service worker cache v3 (excludes images)');
+    console.log('- Auto-refresh on page visibility change');
+    console.log('- Auto-refresh on network recovery');
+    console.log('- Periodic health checks every 30s');
+    console.log('- Manual refresh button (click to refresh, double-click for status)');
+    console.log('- Keyboard shortcut: Ctrl+R/Cmd+R to refresh images');
 });
