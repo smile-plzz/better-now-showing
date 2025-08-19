@@ -494,11 +494,18 @@ main {
 .movie-card-image-container {
     position: relative;
     width: 100%;
-    height: 0;
-    padding-top: 150%; /* 2:3 aspect ratio */
+    aspect-ratio: 2 / 3; /* Enforce consistent 2:3 poster ratio */
+    height: auto;
     overflow: hidden;
     flex-shrink: 0; /* Prevent shrinking */
     min-height: 220px; /* Reduced from 300px for smaller cards */
+}
+
+/* Explicit fix for second card image container sizing anomalies */
+div.movie-card:nth-of-type(2) > .movie-card-image-container {
+    aspect-ratio: 2 / 3;
+    height: auto;
+    padding-top: 0 !important; /* Ensure padding hack isn't applied by older rules */
 }
 
 .movie-card-image-container img {
