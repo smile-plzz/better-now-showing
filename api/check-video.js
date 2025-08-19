@@ -1,6 +1,17 @@
 import fetch from 'node-fetch';
 
 export default async function handler(req, res) {
+    // Set CORS headers for Vercel
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    // Handle preflight request
+    if (req.method === 'OPTIONS') {
+        res.status(200).end();
+        return;
+    }
+
     if (req.method === 'POST') {
         const { url } = req.body;
 
@@ -10,7 +21,7 @@ export default async function handler(req, res) {
 
         try {
             const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 6000);
+            const timeout = setTimeout(() => controller.abort(), 5000); // Reduced timeout for Vercel
 
             let response;
             try {
@@ -37,9 +48,14 @@ export default async function handler(req, res) {
 
             const available = response.ok || (response.status >= 200 && response.status < 400);
 
+            // Set cache headers for Vercel
+            res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
             res.status(200).json({ url, available });
         } catch (error) {
             console.error(`[checkVideoAvailability] Error during fetch for ${url}: ${error.message}`);
+            
+            // Set cache headers even for errors (short cache for errors)
+            res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
             res.status(200).json({ url, available: false, error: `Network error: ${error.message}` });
         }
     } else {
