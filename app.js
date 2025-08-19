@@ -178,10 +178,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- API CALLS ---
     const FALLBACK_POSTER = 'data:image/svg+xml;utf8,\
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600">\
-<defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="%230f0f14"/><stop offset="1" stop-color="%231a1a22"/></linearGradient></defs>\
+<defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="%2317171f"/><stop offset="1" stop-color="%232a2d36"/></linearGradient></defs>\
 <rect width="400" height="600" fill="url(%23g)"/>\
-<g fill="%23777" font-family="Arial,Helvetica,sans-serif" text-anchor="middle">\
-<text x="200" y="300" font-size="28">No Image</text>\
+<g fill="%23b7bac1" font-family="Arial,Helvetica,sans-serif" text-anchor="middle">\
+<text x="200" y="280" font-size="24" font-weight="bold">Movie</text>\
+<text x="200" y="320" font-size="16">Poster</text>\
+<text x="200" y="350" font-size="14">Unavailable</text>\
 </g></svg>';
 
     // --- IMAGE LOADING UTILITY ---
@@ -198,6 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Simple error handling
             img.onerror = () => {
+                console.warn(`Failed to load image: ${src}`);
                 img.classList.remove('image-loading');
                 img.classList.add('image-error');
                 // Use fallback immediately on error
@@ -589,7 +592,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 3000);
         },
         createMovieCard(movie) {
-            if (!movie || !movie.Poster || movie.Poster === 'N/A') return null;
+            if (!movie) return null;
 
             const movieCard = document.createElement('div');
             movieCard.className = 'movie-card';
@@ -598,7 +601,7 @@ document.addEventListener('DOMContentLoaded', () => {
             imageContainer.className = 'movie-card-image-container';
 
             // Use robust image loader with retry logic
-            const img = imageLoader.createSimpleImage(movie.Poster, movie.Title, {
+            const img = imageLoader.createSimpleImage(movie.Poster && movie.Poster !== 'N/A' ? movie.Poster : FALLBACK_POSTER, movie.Title, {
                 loading: 'lazy'
             });
 
@@ -709,7 +712,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const moviePromises = titlesToLoad.map(title => api.fetchMovieByTitle(title, 'movie'));
             const movies = await Promise.all(moviePromises);
-            const valid = movies.filter(m => m && m.Response !== 'False' && m.Poster && m.Poster !== 'N/A');
+            
+            // Debug: Log which movies failed to load
+            movies.forEach((movie, index) => {
+                if (!movie || movie.Response === 'False') {
+                    console.warn(`Failed to load movie: ${titlesToLoad[index]}`, movie);
+                }
+            });
+            
+            const valid = movies.filter(m => m && m.Response !== 'False');
+            
+            // If we have some valid movies but not enough, create fallback cards for missing ones
+            if (valid.length > 0 && valid.length < titlesToLoad.length && !append) {
+                const missingCount = titlesToLoad.length - valid.length;
+                for (let i = 0; i < missingCount; i++) {
+                    const fallbackMovie = {
+                        Title: `Movie ${i + 1}`,
+                        Poster: FALLBACK_POSTER,
+                        imdbID: `fallback-${Date.now()}-${i}`,
+                        Type: 'movie'
+                    };
+                    valid.push(fallbackMovie);
+                }
+            }
+            
             if (valid.length === 0 && !append) {
                 popularMoviesGrid.innerHTML = '<p class="error-message">Unable to load movies right now. Please try again shortly.</p>';
                 loadMorePopularButton.style.display = 'none';
@@ -739,7 +765,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const showPromises = titlesToLoad.map(title => api.fetchMovieByTitle(title, 'series'));
             const shows = await Promise.all(showPromises);
-            const valid = shows.filter(s => s && s.Response !== 'False' && s.Poster && s.Poster !== 'N/A');
+            const valid = shows.filter(s => s && s.Response !== 'False');
             if (valid.length === 0 && !append) {
                 popularTvShowsGrid.innerHTML = '<p class="error-message">Unable to load TV shows right now. Please try again shortly.</p>';
                 loadMorePopularTvButton.style.display = 'none';
@@ -1741,193 +1767,5 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('- Keyboard shortcut: Ctrl+R/Cmd+R to refresh images');
     console.log('- Automatic image refresh on page load');
     
-    // --- MEMORY MONITORING & CLEANUP ---
-    
-    // Monitor memory usage and cleanup if needed
-    const memoryMonitor = {
-        lastCleanup: Date.now(),
-        cleanupInterval: 5 * 60 * 1000, // 5 minutes
-        
-        checkMemory() {
-            // Check if we need to perform cleanup
-            const now = Date.now();
-            if (now - this.lastCleanup > this.cleanupInterval) {
-                this.performCleanup();
-                this.lastCleanup = now;
-            }
-        },
-        
-        performCleanup() {
-            console.log('Performing scheduled memory cleanup...');
-            
-            // Force garbage collection if available
-            if (window.gc) {
-                window.gc();
-            }
-            
-            // Clean up any orphaned elements
-            const orphanedImages = document.querySelectorAll('img:not([src])');
-            if (orphanedImages.length > 0) {
-                console.log(`Cleaning up ${orphanedImages.length} orphaned images`);
-                orphanedImages.forEach(img => imageLoader.cleanupImage(img));
-            }
-            
-            // Log memory status
-            if ('memory' in performance) {
-                const mem = performance.memory;
-                console.log(`Memory usage: ${Math.round(mem.usedJSHeapSize / 1024 / 1024)}MB / ${Math.round(mem.jsHeapSizeLimit / 1024 / 1024)}MB`);
-            }
-        }
-    };
-    
-    // Set up periodic memory monitoring
-    const memoryCheckInterval = setInterval(() => {
-        memoryMonitor.checkMemory();
-    }, 60000); // Check every minute
-    
-    // Clean up on page unload
-    window.addEventListener('beforeunload', () => {
-        clearInterval(memoryCheckInterval);
-        cleanupManager.cleanup();
-    });
-    
-    // Clean up on page hide (mobile backgrounding)
-    document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-            // Page is hidden, perform cleanup
-            cleanupManager.clearAllTimeouts();
-            cleanupManager.clearAllIntervals();
-        }
-    });
-    
-    // Emergency cleanup function (can be called manually)
-    window.emergencyCleanup = () => {
-        console.log('Emergency cleanup initiated...');
-        cleanupManager.cleanup();
-        memoryMonitor.performCleanup();
-        
-        // Force reload if still unresponsive
-        cleanupManager.setTimeout(() => {
-            if (document.body.classList.contains('unresponsive')) {
-                console.log('Site still unresponsive, forcing reload...');
-                window.location.reload();
-            }
-        }, 2000);
-    };
-    
-    // Performance monitoring to detect unresponsiveness
-    const performanceMonitor = {
-        lastFrameTime: Date.now(),
-        frameCount: 0,
-        unresponsiveThreshold: 1000, // 1 second without frame updates
-        
-        startMonitoring() {
-            this.monitorFrame();
-            this.monitorUserInteraction();
-        },
-        
-        monitorFrame() {
-            requestAnimationFrame(() => {
-                const now = Date.now();
-                const frameDelta = now - this.lastFrameTime;
-                
-                if (frameDelta > this.unresponsiveThreshold) {
-                    console.warn(`Frame delay detected: ${frameDelta}ms - site may be unresponsive`);
-                    this.handleUnresponsiveness();
-                }
-                
-                this.lastFrameTime = now;
-                this.frameCount++;
-                
-                // Continue monitoring
-                this.monitorFrame();
-            });
-        },
-        
-        monitorUserInteraction() {
-            let lastInteraction = Date.now();
-            
-            const interactionEvents = ['click', 'touchstart', 'keydown', 'scroll'];
-            interactionEvents.forEach(event => {
-                document.addEventListener(event, () => {
-                    lastInteraction = Date.now();
-                }, { passive: true });
-            });
-            
-            // Check for lack of user interaction
-            setInterval(() => {
-                const timeSinceInteraction = Date.now() - lastInteraction;
-                if (timeSinceInteraction > 30000) { // 30 seconds
-                    // Perform light cleanup
-                    cleanupManager.clearAllTimeouts();
-                }
-            }, 10000); // Check every 10 seconds
-        },
-        
-        handleUnresponsiveness() {
-            document.body.classList.add('unresponsive');
-            
-            // Try to recover automatically
-            cleanupManager.clearAllTimeouts();
-            cleanupManager.clearAllIntervals();
-            
-            // Remove unresponsive class after recovery
-            cleanupManager.setTimeout(() => {
-                document.body.classList.remove('unresponsive');
-            }, 5000);
-        }
-    };
-    
-    // Start performance monitoring
-    performanceMonitor.startMonitoring();
-    
-    // Mobile-specific optimizations
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    if (isMobile) {
-        console.log('Mobile device detected - applying optimizations');
-        
-        // Reduce cleanup intervals on mobile
-        memoryMonitor.cleanupInterval = 3 * 60 * 1000; // 3 minutes instead of 5
-        
-        // Add touch event optimizations
-        document.addEventListener('touchstart', () => {
-            // Clear any pending timeouts on touch to improve responsiveness
-            cleanupManager.clearAllTimeouts();
-        }, { passive: true });
-        
-        // Reduce image refresh frequency on mobile
-        const originalRefreshImages = ui.refreshImages;
-        ui.refreshImages = function() {
-            // Only refresh if not in low memory state
-            if ('memory' in performance && performance.memory.usedJSHeapSize < performance.memory.jsHeapSizeLimit * 0.8) {
-                originalRefreshImages.call(this);
-            } else {
-                console.log('Skipping image refresh due to high memory usage');
-            }
-        };
-    }
-    
-    // Add cleanup button to navbar for debugging
-    const cleanupButton = document.createElement('button');
-    cleanupButton.innerHTML = '<i class="fas fa-broom"></i>';
-    cleanupButton.className = 'cleanup-button';
-    cleanupButton.title = 'Emergency Cleanup (Debug)';
-    cleanupButton.style.cssText = `
-        background: none;
-        border: none;
-        color: var(--text-light);
-        cursor: pointer;
-        padding: 8px;
-        margin-left: 10px;
-        border-radius: 4px;
-        transition: background-color 0.2s ease;
-    `;
-    cleanupButton.addEventListener('click', window.emergencyCleanup);
-    
-    // Insert cleanup button after refresh button
-    const navbar = document.querySelector('.navbar');
-    const refreshButton = document.querySelector('.refresh-images-button');
-    if (navbar && refreshButton) {
-        navbar.insertBefore(cleanupButton, refreshButton.nextSibling);
-    }
+
 });
