@@ -396,7 +396,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Refresh all images in the current view
         refreshImages() {
-            console.log('Refreshing all images...');
+            // Refresh images
             
             // Force service worker to clear any cached image responses
             if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
@@ -446,12 +446,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            console.log('Image refresh completed');
+            // Image refresh completed
         },
 
         // Force refresh images on page load/visibility change
         forceImageRefresh() {
-            console.log('Forcing image refresh on page load...');
+            // Force image refresh on page load
             
             // Small delay to ensure DOM is ready
             cleanupManager.setTimeout(() => {
@@ -464,14 +464,14 @@ document.addEventListener('DOMContentLoaded', () => {
             // Simplified: just refresh all images if any are in error state
             const errorImages = document.querySelectorAll('.image-error');
             if (errorImages.length > 0) {
-                console.log(`Found ${errorImages.length} error images, refreshing...`);
+                // Found error images, refreshing
                 this.refreshImages();
             }
         },
 
         // Handle CSP violations by trying alternative approaches
         handleCSPViolation(img, src) {
-            console.log('Potential CSP violation detected, trying alternative approach for:', src);
+            // Possible CSP violation, trying alternative approach
             
             // Try without cache buster
             if (img.src.includes('_cb=')) {
@@ -492,7 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Nuclear option: Force complete image refresh
         nuclearImageRefresh() {
-            console.log('Nuclear image refresh initiated...');
+            // Nuclear image refresh initiated
             
             // Force service worker to clear everything
             if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
@@ -506,7 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 caches.keys().then(keys => {
                     keys.forEach(key => {
                         if (key !== 'nowshowing-v4') {
-                            console.log('Deleting cache:', key);
+                            // Deleting cache key
                             caches.delete(key);
                         }
                     });
@@ -539,14 +539,14 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => {
                 const errorImages = document.querySelectorAll('.image-error');
                 if (errorImages.length > 0) {
-                    console.log('Nuclear refresh completed but images still failing, suggesting page reload');
+                    // Nuclear refresh completed but images still failing, suggest reload
                     if (confirm('Images still not loading. Would you like to reload the page?')) {
                         window.location.reload(true);
                     }
                 }
             }, 3000);
             
-            console.log('Nuclear image refresh completed');
+            // Nuclear image refresh completed
         },
 
         // Get image loading statistics
@@ -567,7 +567,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Keeping it for now as it might be used elsewhere or removed later.
             const stats = this.getImageStats();
             const message = `Images: ${stats.loading} loading, ${stats.failed} failed`;
-            console.log(message);
+            // Image status: message
             
             // Show a temporary notification
             const notification = document.createElement('div');
@@ -719,7 +719,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Debug: Log which movies failed to load
             movies.forEach((movie, index) => {
                 if (!movie || movie.Response === 'False') {
-                    console.warn(`Failed to load movie: ${titlesToLoad[index]}`, movie);
+                    // Failed to load movie
                 }
             });
             
@@ -832,7 +832,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 }
             } catch (error) {
-                console.error('Error fetching news:', error);
+                // Error fetching news
                 if (!append) { // Only show the error message on the initial load
                     newsGrid.innerHTML = `<p class="error-message">Could not load news: ${error.message}. Please try again later.</p>`;
                 }
@@ -1024,18 +1024,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (activeSource) {
                 const activeUrl = this.constructVideoUrl(activeSource, imdbID, null, null, 'movie');
                 if (activeUrl) {
-                    console.log('Loading video from:', activeUrl);
+                    // Loading video from
                     videoPlayer.src = activeUrl;
                     videoAvailabilityStatus.textContent = `Attempting to load from ${activeSource.name}...`;
                     
                     // Add load event listener to check if iframe loads successfully
                     videoPlayer.onload = () => {
-                        console.log('Video iframe loaded successfully');
+                        // Video iframe loaded successfully
                         videoAvailabilityStatus.textContent = `Video loaded from ${activeSource.name}`;
                     };
                     
                     videoPlayer.onerror = () => {
-                        console.log('Video iframe failed to load');
+                        // Video iframe failed to load
                         videoAvailabilityStatus.textContent = `Failed to load from ${activeSource.name}`;
                     };
                 }
@@ -1062,7 +1062,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 button.onclick = () => {
-                    console.log('Switching to source:', source.name, 'URL:', fullUrl);
+                    // Switching to source
                     videoPlayer.src = fullUrl;
                     document.querySelectorAll('.source-button').forEach(btn => btn.classList.remove('active'));
                     button.classList.add('active');
@@ -1074,12 +1074,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     // Add new event listeners
                     videoPlayer.onload = () => {
-                        console.log('Video iframe loaded successfully from', source.name);
+                        // Video iframe loaded successfully
                         videoAvailabilityStatus.textContent = `Video loaded from ${source.name}`;
                     };
                     
                     videoPlayer.onerror = () => {
-                        console.log('Video iframe failed to load from', source.name);
+                        // Video iframe failed to load
                         videoAvailabilityStatus.textContent = `Failed to load from ${source.name}`;
                     };
                     
@@ -1091,10 +1091,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 api.checkVideoAvailability(fullUrl).then(isAvailable => {
                     if (isAvailable) {
                         button.classList.add('is-available');
-                        console.log(`Source ${source.name} is available`);
+                        // Source available
                     } else {
                         button.classList.add('is-unavailable');
-                        console.log(`Source ${source.name} is unavailable`);
+                        // Source unavailable
                         const isActive = button.classList.contains('active');
                         if (isActive) {
                             const next = Array.from(document.querySelectorAll('.source-button')).find(b => !b.isSameNode(button) && !b.classList.contains('is-unavailable'));
@@ -1102,7 +1102,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     }
                 }).catch(error => {
-                    console.log(`Error checking availability for ${source.name}:`, error);
+                    // Error checking availability
                     button.classList.add('is-unavailable');
                 });
             }
@@ -1113,7 +1113,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (activeBtn && activeBtn.classList.contains('is-unavailable')) {
                     const next = Array.from(document.querySelectorAll('.source-button')).find(b => !b.classList.contains('is-unavailable'));
                     if (next) {
-                        console.log('Auto-switching to next available source:', next.textContent);
+                        // Auto-switching to next available source
                         next.click();
                     }
                 }
@@ -1136,18 +1136,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (activeSource) {
                 const activeUrl = this.constructVideoUrl(activeSource, imdbID, season, episode, 'series');
                 if (activeUrl) {
-                    console.log('Loading TV episode from:', activeUrl);
+                    // Loading TV episode from
                     videoPlayer.src = activeUrl;
                     videoAvailabilityStatus.textContent = `Attempting to load from ${activeSource.name} (S${season}E${episode})...`;
                     
                     // Add load event listener to check if iframe loads successfully
                     videoPlayer.onload = () => {
-                        console.log('TV episode iframe loaded successfully');
+                        // TV episode iframe loaded successfully
                         videoAvailabilityStatus.textContent = `Episode loaded from ${activeSource.name}`;
                     };
                     
                     videoPlayer.onerror = () => {
-                        console.log('TV episode iframe failed to load');
+                        // TV episode iframe failed to load
                         videoAvailabilityStatus.textContent = `Failed to load episode from ${activeSource.name}`;
                     };
                 }
@@ -1173,7 +1173,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 button.onclick = () => {
-                    console.log('Switching TV source to:', source.name, 'URL:', fullUrl);
+                    // Switching TV source to
                     videoPlayer.src = fullUrl;
                     document.querySelectorAll('.source-button').forEach(btn => btn.classList.remove('active'));
                     button.classList.add('active');
@@ -1185,12 +1185,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     // Add new event listeners
                     videoPlayer.onload = () => {
-                        console.log('TV episode iframe loaded successfully from', source.name);
+                        // TV episode iframe loaded successfully
                         videoAvailabilityStatus.textContent = `Episode loaded from ${source.name}`;
                     };
                     
                     videoPlayer.onerror = () => {
-                        console.log('TV episode iframe failed to load from', source.name);
+                        // TV episode iframe failed to load
                         videoAvailabilityStatus.textContent = `Failed to load episode from ${source.name}`;
                     };
                     
@@ -1202,10 +1202,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 api.checkVideoAvailability(fullUrl).then(isAvailable => {
                     if (isAvailable) {
                         button.classList.add('is-available');
-                        console.log(`TV source ${source.name} is available`);
+                        // TV source available
                     } else {
                         button.classList.add('is-unavailable');
-                        console.log(`TV source ${source.name} is unavailable`);
+                        // TV source unavailable
                         const isActive = button.classList.contains('active');
                         if (isActive) {
                             const next = Array.from(document.querySelectorAll('.source-button')).find(b => !b.isSameNode(button) && !b.classList.contains('is-unavailable'));
@@ -1213,7 +1213,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     }
                 }).catch(error => {
-                    console.log(`Error checking TV source availability for ${source.name}:`, error);
+                    // Error checking TV source availability
                     button.classList.add('is-unavailable');
                 });
             }
@@ -1224,7 +1224,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (activeBtn && activeBtn.classList.contains('is-unavailable')) {
                     const next = Array.from(document.querySelectorAll('.source-button')).find(b => !b.classList.contains('is-unavailable'));
                     if (next) {
-                        console.log('Auto-switching TV source to next available:', next.textContent);
+                        // Auto-switching TV source to next available
                         next.click();
                     }
                 }
@@ -1355,7 +1355,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Video play overlay click handler
     videoPlayOverlay.addEventListener('click', () => {
-        console.log('Play overlay clicked, attempting to play video');
+        // Play overlay clicked, attempting to play video
         videoPlayOverlay.style.display = 'none';
         
         // Try to focus the iframe to ensure it's active
@@ -1369,7 +1369,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     videoPlayer.contentWindow.postMessage('play', '*');
                 }
             } catch (e) {
-                console.log('Could not send play message to iframe:', e);
+                // Could not send play message to iframe
             }
         }, 1000);
     });
@@ -1610,7 +1610,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         clickTimer = cleanupManager.setTimeout(() => {
             if (clickCount === 3) {
-                console.log('Triple-click detected - initiating nuclear refresh');
+                // Triple-click detected - initiating nuclear refresh
                 ui.nuclearImageRefresh();
                 clickCount = 0;
             } else if (clickCount === 1) {
@@ -1676,7 +1676,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Continue watching and watchlist
         const continueList = storage.getContinueWatching();
-        console.log('Continue watching list:', continueList);
+        // Continue watching list
         if (continueList.length) {
             continueWatchingSection.style.display = 'block';
             ui.renderListSection(continueWatchingGrid, continueList);
@@ -1687,7 +1687,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         const watchList = storage.getWatchlist();
-        console.log('Watchlist:', watchList);
+        // Watchlist
         if (watchList.length) {
             watchlistSection.style.display = 'block';
             ui.renderListSection(watchlistGrid, watchList);
@@ -1710,7 +1710,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Page is visible again, check if we need to refresh images
             const errorImages = document.querySelectorAll('.image-error');
             if (errorImages.length > 0) {
-                console.log(`Page became visible with ${errorImages.length} error images, refreshing...`);
+                // Page became visible with error images, refreshing
                 // Small delay to ensure page is fully loaded
                 cleanupManager.setTimeout(() => {
                     ui.refreshImages();
@@ -1722,7 +1722,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- NETWORK STATUS HANDLING ---
     // Refresh images when network comes back online
     window.addEventListener('online', () => {
-        console.log('Network is back online, refreshing images...');
+        // Network is back online, refreshing images
         cleanupManager.setTimeout(() => {
             ui.refreshImages();
         }, 1000);
@@ -1733,7 +1733,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
             e.preventDefault(); // Prevent browser refresh
-            console.log('Image refresh shortcut triggered');
+            // Image refresh shortcut triggered
             ui.refreshImages();
         }
     });
@@ -1741,7 +1741,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Global error handler for CSP violations
     window.addEventListener('error', (event) => {
         if (event.error && event.error.message && event.error.message.includes('CSP')) {
-            console.log('CSP violation detected, attempting to handle...');
+            // CSP violation detected
             // This will help us identify CSP issues
         }
     });
@@ -1749,7 +1749,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Global unhandled rejection handler
     window.addEventListener('unhandledrejection', (event) => {
         if (event.reason && event.reason.message && event.reason.message.includes('CSP')) {
-            console.log('Unhandled CSP rejection detected');
+            // Unhandled CSP rejection detected
             event.preventDefault();
         }
     });
@@ -1757,14 +1757,7 @@ document.addEventListener('DOMContentLoaded', () => {
     init();
     
     // Log image loading system status
-    console.log('NowShowing Image Loading System initialized with:');
-    console.log('- Simple image loader without complex retry logic');
-    console.log('- Service worker cache v4 (aggressively excludes images)');
-    console.log('- Simple image refresh on page load');
-    console.log('- Manual refresh button (click to refresh, double-click for status)');
-    console.log('- Nuclear refresh option (triple-click for complete cache clear)');
-    console.log('- Keyboard shortcut: Ctrl+R/Cmd+R to refresh images');
-    console.log('- Automatic image refresh on page load');
+    // Image loading system initialized
     
 
 });

@@ -503,12 +503,7 @@ main {
     pointer-events: none; /* Do not intercept clicks; let the card handle them */
 }
 
-/* Explicit fix for second card image container sizing anomalies */
-div.movie-card:nth-of-type(2) > .movie-card-image-container {
-    aspect-ratio: 2 / 3;
-    height: auto;
-    padding-top: 0 !important; /* Ensure padding hack isn't applied by older rules */
-}
+/* Removed special-case nth-of-type fix after global alignment changes */
 
 .movie-card-image-container img {
     position: absolute;
