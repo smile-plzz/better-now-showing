@@ -453,11 +453,20 @@ main {
 
 .movies-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 2rem;
     justify-content: center;
+    max-width: 100%;
 }
 
+/* Home page specific grid adjustments */
+#continue-watching-grid,
+#watchlist-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 2rem;
+}
+
+/* Ensure consistent movie card sizing */
 .movie-card {
     background-color: var(--card-background);
     border-radius: 14px;
@@ -470,6 +479,9 @@ main {
     display: flex;
     flex-direction: column;
     position: relative;
+    width: 100%;
+    min-height: 420px; /* Ensure consistent height */
+    max-width: 100%;
 }
 
 .movie-card:hover {
@@ -483,6 +495,8 @@ main {
     height: 0;
     padding-top: 150%; /* 2:3 aspect ratio */
     overflow: hidden;
+    flex-shrink: 0; /* Prevent shrinking */
+    min-height: 300px; /* Minimum height for image container */
 }
 
 .movie-card-image-container img {
@@ -494,6 +508,7 @@ main {
     object-fit: cover;
     transform: scale(1.02);
     transition: transform 0.35s ease;
+    min-height: 100%;
 }
 
 .movie-card:hover .movie-card-image-container img {
@@ -1668,6 +1683,66 @@ body.unresponsive::after {
     
     .video-details h2 {
         font-size: 1.5rem;
+    }
+}
+
+/* Home page sections - only show on home page */
+#continue-watching-section,
+#watchlist-section {
+    display: none; /* Hidden by default */
+}
+
+/* Show home page sections only when on home page */
+body.home-page #continue-watching-section,
+body.home-page #watchlist-section {
+    display: block;
+}
+
+/* Responsive adjustments for movie cards */
+@media (max-width: 1200px) {
+    .movies-grid {
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    #continue-watching-grid,
+    #watchlist-grid {
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 1.5rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .movies-grid {
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 1rem;
+    }
+    
+    #continue-watching-grid,
+    #watchlist-grid {
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 1rem;
+    }
+    
+    .movie-card {
+        min-height: 380px;
+    }
+}
+
+@media (max-width: 480px) {
+    .movies-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 0.75rem;
+    }
+    
+    #continue-watching-grid,
+    #watchlist-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 0.75rem;
+    }
+    
+    .movie-card {
+        min-height: 340px;
     }
 }
 

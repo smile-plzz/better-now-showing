@@ -844,6 +844,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         },
         showHomeView() {
+            // Add home-page class to body
+            document.body.classList.add('home-page');
+            
             popularMoviesSection.style.display = 'block';
             searchResultsSection.style.display = 'none';
             popularTvShowsSection.style.display = 'none';
@@ -860,6 +863,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (wl.length) this.renderListSection(watchlistGrid, wl);
         },
         showSearchView() {
+            // Remove home-page class from body
+            document.body.classList.remove('home-page');
+            
             popularMoviesSection.style.display = 'none';
             searchResultsSection.style.display = 'block';
             popularTvShowsSection.style.display = 'none';
@@ -1402,11 +1408,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     moviesNavLink.addEventListener('click', (e) => {
         e.preventDefault();
+        // Remove home-page class from body
+        document.body.classList.remove('home-page');
+        
         popularMoviesSection.style.display = 'block';
         searchResultsSection.style.display = 'none';
         popularTvShowsSection.style.display = 'none';
-        continueWatchingSection.style.display = storage.getContinueWatching().length ? 'block' : 'none';
-        watchlistSection.style.display = storage.getWatchlist().length ? 'block' : 'none';
+        continueWatchingSection.style.display = 'none';
+        watchlistSection.style.display = 'none';
         popularMoviesPage = 1;
         popularTvShowsPage = 1;
         ui.renderPopularMovies();
@@ -1414,6 +1423,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     tvShowsNavLink.addEventListener('click', (e) => {
         e.preventDefault();
+        // Remove home-page class from body
+        document.body.classList.remove('home-page');
+        
         popularMoviesSection.style.display = 'none';
         searchResultsSection.style.display = 'none';
         popularTvShowsSection.style.display = 'block';
@@ -1426,6 +1438,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     watchlistNavLink.addEventListener('click', (e) => {
         e.preventDefault();
+        // Remove home-page class from body
+        document.body.classList.remove('home-page');
+        
         popularMoviesSection.style.display = 'none';
         searchResultsSection.style.display = 'none';
         popularTvShowsSection.style.display = 'none';
@@ -1436,6 +1451,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     continueNavLink.addEventListener('click', (e) => {
         e.preventDefault();
+        // Remove home-page class from body
+        document.body.classList.remove('home-page');
+        
         popularMoviesSection.style.display = 'none';
         searchResultsSection.style.display = 'none';
         popularTvShowsSection.style.display = 'none';
@@ -1447,11 +1465,14 @@ document.addEventListener('DOMContentLoaded', () => {
     mobileMoviesNavLink.addEventListener('click', (e) => {
         e.preventDefault();
         mobileNavOverlay.classList.remove('active');
+        // Remove home-page class from body
+        document.body.classList.remove('home-page');
+        
         popularMoviesSection.style.display = 'block';
         searchResultsSection.style.display = 'none';
         popularTvShowsSection.style.display = 'none';
-        continueWatchingSection.style.display = storage.getContinueWatching().length ? 'block' : 'none';
-        watchlistSection.style.display = storage.getWatchlist().length ? 'block' : 'none';
+        continueWatchingSection.style.display = 'none';
+        watchlistSection.style.display = 'none';
         popularMoviesPage = 1;
         popularTvShowsPage = 1;
         ui.renderPopularMovies();
@@ -1460,6 +1481,9 @@ document.addEventListener('DOMContentLoaded', () => {
     mobileTvShowsNavLink.addEventListener('click', (e) => {
         e.preventDefault();
         mobileNavOverlay.classList.remove('active');
+        // Remove home-page class from body
+        document.body.classList.remove('home-page');
+        
         popularMoviesSection.style.display = 'none';
         searchResultsSection.style.display = 'none';
         popularTvShowsSection.style.display = 'block';
@@ -1473,6 +1497,9 @@ document.addEventListener('DOMContentLoaded', () => {
     mobileWatchlistNavLink.addEventListener('click', (e) => {
         e.preventDefault();
         mobileNavOverlay.classList.remove('active');
+        // Remove home-page class from body
+        document.body.classList.remove('home-page');
+        
         popularMoviesSection.style.display = 'none';
         searchResultsSection.style.display = 'none';
         popularTvShowsSection.style.display = 'none';
@@ -1484,6 +1511,9 @@ document.addEventListener('DOMContentLoaded', () => {
     mobileContinueNavLink.addEventListener('click', (e) => {
         e.preventDefault();
         mobileNavOverlay.classList.remove('active');
+        // Remove home-page class from body
+        document.body.classList.remove('home-page');
+        
         popularMoviesSection.style.display = 'none';
         searchResultsSection.style.display = 'none';
         popularTvShowsSection.style.display = 'none';
@@ -1606,6 +1636,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- INITIAL LOAD ---
     const init = () => {
+        // Add home-page class to body for initial load
+        document.body.classList.add('home-page');
+        
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'light') {
             document.body.classList.add('light-mode');
