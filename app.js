@@ -194,6 +194,10 @@ document.addEventListener('DOMContentLoaded', () => {
             img.alt = alt;
             img.loading = options.loading || 'lazy';
             img.referrerPolicy = 'no-referrer';
+            // Provide intrinsic dimensions to stabilize layout before image loads
+            img.width = 400; // maintains 2:3 ratio with height below
+            img.height = 600;
+            img.decoding = 'async';
             
             // Add loading class for visual feedback
             img.classList.add('image-loading');
