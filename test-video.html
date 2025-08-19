@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Player Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #1a1a1a;
+            color: white;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .video-player-container {
+            position: relative;
+            width: 100%;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            margin-bottom: 2rem;
+            aspect-ratio: 16/9;
+            min-height: 400px;
+        }
+        .video-player-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: #000;
+        }
+        .test-button {
+            background: #e50914;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        .test-button:hover {
+            background: #d40812;
+        }
+        .status {
+            background: #333;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Video Player Test</h1>
+        <p>Testing iframe video loading functionality</p>
+        
+        <div class="video-player-container">
+            <iframe id="test-video-player" src="about:blank" allowfullscreen></iframe>
+        </div>
+        
+        <div class="status" id="status">
+            Status: Ready to test
+        </div>
+        
+        <button class="test-button" onclick="testVidSrc()">Test VidSrc.to</button>
+        <button class="test-button" onclick="testVidCloud()">Test VidCloud</button>
+        <button class="test-button" onclick="test2Embed()">Test 2Embed</button>
+        <button class="test-button" onclick="clearVideo()">Clear Video</button>
+        
+        <h3>Test Results:</h3>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const videoPlayer = document.getElementById('test-video-player');
+        const status = document.getElementById('status');
+        const results = document.getElementById('results');
+        
+        function updateStatus(message) {
+            status.textContent = `Status: ${message}`;
+            console.log(message);
+        }
+        
+        function addResult(message, success = true) {
+            const div = document.createElement('div');
+            div.style.background = success ? '#1a472a' : '#4a1a1a';
+            div.style.padding = '10px';
+            div.style.margin = '5px 0';
+            div.style.borderRadius = '5px';
+            div.style.borderLeft = `4px solid ${success ? '#00ff00' : '#ff0000'}`;
+            div.textContent = message;
+            results.appendChild(div);
+        }
+        
+        function testVidSrc() {
+            updateStatus('Testing VidSrc.to...');
+            const testUrl = 'https://vidsrc.to/embed/movie/tt0111161'; // Shawshank Redemption
+            videoPlayer.src = testUrl;
+            
+            videoPlayer.onload = () => {
+                updateStatus('VidSrc.to loaded successfully');
+                addResult('✓ VidSrc.to iframe loaded successfully', true);
+            };
+            
+            videoPlayer.onerror = () => {
+                updateStatus('VidSrc.to failed to load');
+                addResult('✗ VidSrc.to iframe failed to load', false);
+            };
+            
+            // Check if iframe loads within 10 seconds
+            setTimeout(() => {
+                if (videoPlayer.contentDocument || videoPlayer.contentWindow) {
+                    updateStatus('VidSrc.to content accessible');
+                    addResult('✓ VidSrc.to content is accessible', true);
+                } else {
+                    updateStatus('VidSrc.to content not accessible (may be blocked)');
+                    addResult('⚠ VidSrc.to content not accessible (CORS/security restriction)', false);
+                }
+            }, 10000);
+        }
+        
+        function testVidCloud() {
+            updateStatus('Testing VidCloud...');
+            const testUrl = 'https://vidcloud.stream/tt0111161';
+            videoPlayer.src = testUrl;
+            
+            videoPlayer.onload = () => {
+                updateStatus('VidCloud loaded successfully');
+                addResult('✓ VidCloud iframe loaded successfully', true);
+            };
+            
+            videoPlayer.onerror = () => {
+                updateStatus('VidCloud failed to load');
+                addResult('✗ VidCloud iframe failed to load', false);
+            };
+            
+            setTimeout(() => {
+                if (videoPlayer.contentDocument || videoPlayer.contentWindow) {
+                    updateStatus('VidCloud content accessible');
+                    addResult('✓ VidCloud content is accessible', true);
+                } else {
+                    updateStatus('VidCloud content not accessible (may be blocked)');
+                    addResult('⚠ VidCloud content not accessible (CORS/security restriction)', false);
+                }
+            }, 10000);
+        }
+        
+        function test2Embed() {
+            updateStatus('Testing 2Embed...');
+            const testUrl = 'https://2embed.cc/embed/tt0111161';
+            videoPlayer.src = testUrl;
+            
+            videoPlayer.onload = () => {
+                updateStatus('2Embed loaded successfully');
+                addResult('✓ 2Embed iframe loaded successfully', true);
+            };
+            
+            videoPlayer.onerror = () => {
+                updateStatus('2Embed failed to load');
+                addResult('✗ 2Embed iframe failed to load', false);
+            };
+            
+            setTimeout(() => {
+                if (videoPlayer.contentDocument || videoPlayer.contentWindow) {
+                    updateStatus('2Embed content accessible');
+                    addResult('✓ 2Embed content is accessible', true);
+                } else {
+                    updateStatus('2Embed content not accessible (may be blocked)');
+                    addResult('⚠ 2Embed content not accessible (CORS/security restriction)', false);
+                }
+            }, 10000);
+        }
+        
+        function clearVideo() {
+            videoPlayer.src = 'about:blank';
+            updateStatus('Video cleared');
+            addResult('Video player cleared', true);
+        }
+        
+        // Monitor iframe events
+        videoPlayer.addEventListener('load', () => {
+            console.log('Iframe load event fired');
+        });
+        
+        videoPlayer.addEventListener('error', () => {
+            console.log('Iframe error event fired');
+        });
+        
+        updateStatus('Ready to test video sources');
+    </script>
+</body>
+</html>

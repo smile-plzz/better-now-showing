@@ -872,6 +872,13 @@ document.addEventListener('DOMContentLoaded', () => {
             seasonEpisodeSelector.style.display = 'none'; // Hide by default
             currentOpenImdbId = imdbID;
 
+            // Reset video player state
+            videoPlayer.onload = null;
+            videoPlayer.onerror = null;
+            
+            // Ensure play overlay is visible initially
+            videoPlayOverlay.style.display = 'flex';
+
             const details = await api.fetchMovieDetails(imdbID);
 
             if (details && details.Response === 'True') {
@@ -948,7 +955,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             videoModal.style.display = 'flex';
-            videoPlayOverlay.style.display = 'flex'; // Show play overlay initially
             lastFocusedElement = document.activeElement; // Save the element that had focus
             videoModal.focus(); // Set focus to the modal
             this.trapFocus(videoModal);
@@ -983,8 +989,20 @@ document.addEventListener('DOMContentLoaded', () => {
             if (activeSource) {
                 const activeUrl = this.constructVideoUrl(activeSource, imdbID, null, null, 'movie');
                 if (activeUrl) {
+                    console.log('Loading video from:', activeUrl);
                     videoPlayer.src = activeUrl;
                     videoAvailabilityStatus.textContent = `Attempting to load from ${activeSource.name}...`;
+                    
+                    // Add load event listener to check if iframe loads successfully
+                    videoPlayer.onload = () => {
+                        console.log('Video iframe loaded successfully');
+                        videoAvailabilityStatus.textContent = `Video loaded from ${activeSource.name}`;
+                    };
+                    
+                    videoPlayer.onerror = () => {
+                        console.log('Video iframe failed to load');
+                        videoAvailabilityStatus.textContent = `Failed to load from ${activeSource.name}`;
+                    };
                 }
             } else {
                 videoAvailabilityStatus.textContent = 'No video sources available.';
@@ -1009,33 +1027,60 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 button.onclick = () => {
+                    console.log('Switching to source:', source.name, 'URL:', fullUrl);
                     videoPlayer.src = fullUrl;
                     document.querySelectorAll('.source-button').forEach(btn => btn.classList.remove('active'));
                     button.classList.add('active');
                     videoAvailabilityStatus.textContent = `Loading from ${source.name}...`;
+                    
+                    // Clear previous event listeners
+                    videoPlayer.onload = null;
+                    videoPlayer.onerror = null;
+                    
+                    // Add new event listeners
+                    videoPlayer.onload = () => {
+                        console.log('Video iframe loaded successfully from', source.name);
+                        videoAvailabilityStatus.textContent = `Video loaded from ${source.name}`;
+                    };
+                    
+                    videoPlayer.onerror = () => {
+                        console.log('Video iframe failed to load from', source.name);
+                        videoAvailabilityStatus.textContent = `Failed to load from ${source.name}`;
+                    };
+                    
                     // Save continue-watching entry
                     storage.upsertContinue({ imdbID, title: document.getElementById('modal-movie-title').textContent, poster: document.getElementById('modal-movie-poster').src, type: 'movie' });
                 };
 
+                // Check availability and update button styling
                 api.checkVideoAvailability(fullUrl).then(isAvailable => {
                     if (isAvailable) {
                         button.classList.add('is-available');
+                        console.log(`Source ${source.name} is available`);
                     } else {
                         button.classList.add('is-unavailable');
+                        console.log(`Source ${source.name} is unavailable`);
                         const isActive = button.classList.contains('active');
                         if (isActive) {
                             const next = Array.from(document.querySelectorAll('.source-button')).find(b => !b.isSameNode(button) && !b.classList.contains('is-unavailable'));
                             if (next) next.click();
                         }
                     }
+                }).catch(error => {
+                    console.log(`Error checking availability for ${source.name}:`, error);
+                    button.classList.add('is-unavailable');
                 });
             }
 
-            setTimeout(() => {
+            // Auto-switch to next available source if current fails
+            cleanupManager.setTimeout(() => {
                 const activeBtn = document.querySelector('.source-button.active');
                 if (activeBtn && activeBtn.classList.contains('is-unavailable')) {
                     const next = Array.from(document.querySelectorAll('.source-button')).find(b => !b.classList.contains('is-unavailable'));
-                    if (next) next.click();
+                    if (next) {
+                        console.log('Auto-switching to next available source:', next.textContent);
+                        next.click();
+                    }
                 }
             }, 6000);
         },
@@ -1056,8 +1101,20 @@ document.addEventListener('DOMContentLoaded', () => {
             if (activeSource) {
                 const activeUrl = this.constructVideoUrl(activeSource, imdbID, season, episode, 'series');
                 if (activeUrl) {
+                    console.log('Loading TV episode from:', activeUrl);
                     videoPlayer.src = activeUrl;
                     videoAvailabilityStatus.textContent = `Attempting to load from ${activeSource.name} (S${season}E${episode})...`;
+                    
+                    // Add load event listener to check if iframe loads successfully
+                    videoPlayer.onload = () => {
+                        console.log('TV episode iframe loaded successfully');
+                        videoAvailabilityStatus.textContent = `Episode loaded from ${activeSource.name}`;
+                    };
+                    
+                    videoPlayer.onerror = () => {
+                        console.log('TV episode iframe failed to load');
+                        videoAvailabilityStatus.textContent = `Failed to load episode from ${activeSource.name}`;
+                    };
                 }
             } else {
                 videoAvailabilityStatus.textContent = 'No TV show sources available.';
@@ -1075,38 +1132,66 @@ document.addEventListener('DOMContentLoaded', () => {
                 button.textContent = source.name;
                 sourceButtonsContainer.appendChild(button);
 
+                // Set the active class on the default button
                 if (source.name === activeSource.name) {
                     button.classList.add('active');
                 }
 
                 button.onclick = () => {
+                    console.log('Switching TV source to:', source.name, 'URL:', fullUrl);
                     videoPlayer.src = fullUrl;
                     document.querySelectorAll('.source-button').forEach(btn => btn.classList.remove('active'));
                     button.classList.add('active');
                     videoAvailabilityStatus.textContent = `Loading from ${source.name} (S${season}E${episode})...`;
-                    // Save continue-watching entry for series
+                    
+                    // Clear previous event listeners
+                    videoPlayer.onload = null;
+                    videoPlayer.onerror = null;
+                    
+                    // Add new event listeners
+                    videoPlayer.onload = () => {
+                        console.log('TV episode iframe loaded successfully from', source.name);
+                        videoAvailabilityStatus.textContent = `Episode loaded from ${source.name}`;
+                    };
+                    
+                    videoPlayer.onerror = () => {
+                        console.log('TV episode iframe failed to load from', source.name);
+                        videoAvailabilityStatus.textContent = `Failed to load episode from ${source.name}`;
+                    };
+                    
+                    // Save continue-watching entry
                     storage.upsertContinue({ imdbID, title: document.getElementById('modal-movie-title').textContent, poster: document.getElementById('modal-movie-poster').src, type: 'series', season, episode });
                 };
 
+                // Check availability and update button styling
                 api.checkVideoAvailability(fullUrl).then(isAvailable => {
                     if (isAvailable) {
                         button.classList.add('is-available');
+                        console.log(`TV source ${source.name} is available`);
                     } else {
                         button.classList.add('is-unavailable');
+                        console.log(`TV source ${source.name} is unavailable`);
                         const isActive = button.classList.contains('active');
                         if (isActive) {
                             const next = Array.from(document.querySelectorAll('.source-button')).find(b => !b.isSameNode(button) && !b.classList.contains('is-unavailable'));
                             if (next) next.click();
                         }
                     }
+                }).catch(error => {
+                    console.log(`Error checking TV source availability for ${source.name}:`, error);
+                    button.classList.add('is-unavailable');
                 });
             }
 
-            setTimeout(() => {
+            // Auto-switch to next available source if current fails
+            cleanupManager.setTimeout(() => {
                 const activeBtn = document.querySelector('.source-button.active');
                 if (activeBtn && activeBtn.classList.contains('is-unavailable')) {
                     const next = Array.from(document.querySelectorAll('.source-button')).find(b => !b.classList.contains('is-unavailable'));
-                    if (next) next.click();
+                    if (next) {
+                        console.log('Auto-switching TV source to next available:', next.textContent);
+                        next.click();
+                    }
                 }
             }, 6000);
         },
@@ -1233,6 +1318,27 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.renderNews(true);
     });
 
+    // Video play overlay click handler
+    videoPlayOverlay.addEventListener('click', () => {
+        console.log('Play overlay clicked, attempting to play video');
+        videoPlayOverlay.style.display = 'none';
+        
+        // Try to focus the iframe to ensure it's active
+        videoPlayer.focus();
+        
+        // Some embedded players need a moment to load
+        cleanupManager.setTimeout(() => {
+            try {
+                // Try to send a message to the iframe to play (if it supports it)
+                if (videoPlayer.contentWindow) {
+                    videoPlayer.contentWindow.postMessage('play', '*');
+                }
+            } catch (e) {
+                console.log('Could not send play message to iframe:', e);
+            }
+        }, 1000);
+    });
+
     // Debounced search
     let searchDebounce;
     const triggerSearch = () => ui.renderSearchResults(searchInput.value.trim());
@@ -1275,14 +1381,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.removeEventListener('keydown', ui.handleModalTabKey);
             }
         }
-    });
-
-    videoPlayOverlay.addEventListener('click', () => {
-        videoPlayOverlay.style.display = 'none';
-        // The iframe src is already set in openVideoModal, so just ensure it's loaded/playing
-        // For some embeds, simply setting display to none might not trigger play, 
-        // but for most iframe embeds, the content loads when the iframe is visible.
-        // If issues persist, consider re-setting videoPlayer.src here or adding a specific play method if the embed API allows.
     });
 
     themeToggle.addEventListener('change', () => {
@@ -1516,14 +1614,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Continue watching and watchlist
         const continueList = storage.getContinueWatching();
+        console.log('Continue watching list:', continueList);
         if (continueList.length) {
             continueWatchingSection.style.display = 'block';
             ui.renderListSection(continueWatchingGrid, continueList);
+        } else {
+            // Show continue watching section even if empty for better UX
+            continueWatchingSection.style.display = 'block';
+            continueWatchingGrid.innerHTML = '<p style="text-align: center; color: var(--text-light); padding: 2rem;">No shows in your continue watching list yet. Start watching something to see it here!</p>';
         }
+        
         const watchList = storage.getWatchlist();
+        console.log('Watchlist:', watchList);
         if (watchList.length) {
             watchlistSection.style.display = 'block';
             ui.renderListSection(watchlistGrid, watchList);
+        } else {
+            // Show watchlist section even if empty for better UX
+            watchlistSection.style.display = 'block';
+            watchlistGrid.innerHTML = '<p style="text-align: center; color: var(--text-light); padding: 2rem;">Your watchlist is empty. Add movies and shows to see them here!</p>';
         }
 
         ui.renderPopularMovies();
