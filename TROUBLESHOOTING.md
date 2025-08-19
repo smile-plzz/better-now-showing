@@ -72,3 +72,21 @@ These files should contain:
     ```
 
 If you encounter these errors, verify these file names and their contents.
+
+## 4. Landing Page Cards Misaligned on First Load
+
+**Problem:** Movie cards appear tall/misaligned on the landing page on the very first visit, but look fine after navigating between pages.
+
+**Root Causes:**
+- Images without intrinsic dimensions can cause layout shifts before they load
+- A forced image refresh after initial render was replacing image elements and briefly disturbing layout
+
+**Fixes Implemented:**
+- Posters are now created with intrinsic dimensions: `width=400`, `height=600`, `decoding=async`
+- Removed the initial call to `forceImageRefresh()` during first render
+- `refreshImages()` now replaces the image inside `.movie-card-image-container` in-place, preserving DOM structure and layout
+- Grid normalized with `.movies-grid { align-items: stretch }` and `.movie-card { height: 100% }`
+
+**If you still see issues:**
+- Hard refresh the page (Ctrl+F5) to clear stale CSS/JS
+- Verify your browser honors `aspect-ratio`; if not, the layout uses intrinsic `width/height` as fallback

@@ -18,9 +18,15 @@
   - Improved hero section background with gradient overlays
   - Enhanced search container styling and interactions
 
-### 3. Movies Grid Layout
+### 3. Movies Grid Layout & Landing Page Alignment
 - **Problem**: Grid layout wasn't properly responsive across different screen sizes
-- **Solution**: Implemented comprehensive responsive grid system
+- **Additional Problem (Landing Page Only)**: On first load, cards appeared misaligned or with inconsistent heights until navigating away and back
+- **Solutions**:
+  - Implemented comprehensive responsive grid system
+  - Removed initial forced image refresh that was causing DOM reflows
+  - Ensured images have intrinsic dimensions (2:3) to stabilize layout before load
+  - Updated refresh logic to replace images in-place within `.movie-card-image-container`
+  - Normalized grid and card heights for consistent nth-of-type alignment
 - **Changes**:
   - Added responsive breakpoints (1200px, 768px, 480px, 360px)
   - Implemented `clamp()` functions for dynamic sizing

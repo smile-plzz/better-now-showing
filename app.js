@@ -405,45 +405,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
             
-            // Simple refresh: recreate all movie card images
+            // Simple refresh: recreate all movie card images without breaking layout
             const allMovieCards = document.querySelectorAll('.movie-card');
             allMovieCards.forEach(card => {
-                const img = card.querySelector('img');
-                if (img && img.src !== FALLBACK_POSTER) {
-                    const movieTitle = card.querySelector('.movie-card-title').textContent;
+                const container = card.querySelector('.movie-card-image-container');
+                const img = container ? container.querySelector('img') : null;
+                if (container && img && img.src !== FALLBACK_POSTER) {
+                    const titleNode = card.querySelector('.movie-card-title');
+                    const movieTitle = titleNode ? titleNode.textContent : 'Poster';
                     const originalSrc = img.src.replace(/[?&]_cb=[^&]*/g, ''); // Remove any cache busters
-                    
-                    // Clean up old image before replacement
-                    imageLoader.cleanupImage(img);
-                    
-                    // Create new simple image
-                    const newImg = imageLoader.createSimpleImage(originalSrc, movieTitle, {
-                        loading: 'lazy'
-                    });
-                    
-                    // Replace old image
-                    card.appendChild(newImg);
+
+                    // Clean up old image listeners but do not remove container
+                    if (img.onerror) img.onerror = null;
+                    if (img.onload) img.onload = null;
+
+                    // Create new simple image with intrinsic size
+                    const newImg = imageLoader.createSimpleImage(originalSrc, movieTitle, { loading: 'lazy' });
+
+                    // Replace old image within the image container to preserve structure
+                    container.replaceChild(newImg, img);
                 }
             });
 
-            // Simple refresh: recreate all news images
-            const allNewsCards = document.querySelectorAll('.news-card img');
-            allNewsCards.forEach(img => {
+            // Simple refresh: recreate all news images without changing DOM order
+            const allNewsImages = document.querySelectorAll('.news-card img');
+            allNewsImages.forEach(img => {
                 if (img.src !== FALLBACK_POSTER) {
                     const newsCard = img.closest('.news-card');
-                    const title = newsCard.querySelector('.news-card-title').textContent;
+                    const titleNode = newsCard ? newsCard.querySelector('.news-card-title') : null;
+                    const title = titleNode ? titleNode.textContent : 'News Image';
                     const originalSrc = img.src.replace(/[?&]_cb=[^&]*/g, ''); // Remove any cache busters
-                    
-                    // Clean up old image before replacement
-                    imageLoader.cleanupImage(img);
-                    
-                    // Create new simple image
-                    const newImg = imageLoader.createSimpleImage(originalSrc, title, {
-                        loading: 'lazy'
-                    });
-                    
-                    // Replace old image
-                    newsCard.appendChild(newImg);
+
+                    // Create replacement image
+                    const newImg = imageLoader.createSimpleImage(originalSrc, title, { loading: 'lazy' });
+
+                    // Replace in-place to preserve layout
+                    if (img.parentNode) {
+                        img.parentNode.replaceChild(newImg, img);
+                    }
                 }
             });
 
@@ -1701,11 +1700,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.renderPopularMovies();
         ui.renderNews();
         
-        // Force image refresh after initial render to ensure fresh loads
-        cleanupManager.setTimeout(() => {
-            console.log('Initial render complete, forcing image refresh...');
-            ui.forceImageRefresh();
-        }, 2000);
+        // Avoid forced image refresh on initial load to prevent layout jank
     };
 
     // --- PAGE VISIBILITY HANDLING ---

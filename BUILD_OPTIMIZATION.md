@@ -1,28 +1,35 @@
 # Vercel Build Optimization Summary
 
-## Latest Optimizations (Movie Card Sizing & Alignment)
+## Latest Optimizations (Landing Page Alignment & Card Ratio)
 
-### 1. Movie Card Size Reduction
+### 1. Landing Page First-Load Alignment
+- **Removed Initial Force Refresh**: Eliminated first-load `forceImageRefresh()` that caused DOM reflows and misalignment on the landing page
+- **In-Place Image Refresh**: `refreshImages()` now replaces images inside `.movie-card-image-container` instead of appending to `.movie-card`, preserving layout
+- **Intrinsic Image Dimensions**: All posters are created with intrinsic dimensions (`width=400`, `height=600`, `decoding=async`) to lock 2:3 layout before the image downloads
+- **Grid Normalization**: `.movies-grid { align-items: stretch }` and `.movie-card { height: 100% }` ensure uniform track heights for every nth-of-type card
+- **Pointer Events**: Disabled pointer events for `.movie-card-image-container` and its `img` so the card reliably handles clicks
+
+### 2. Movie Card Size Reduction
 - **Base Grid**: Changed from `minmax(280px, 1fr)` to `minmax(220px, 1fr)` for smaller, more compact cards
 - **Card Heights**: Reduced from `min-height: 420px` to `min-height: 320px` for better proportions
 - **Image Container**: Reduced from `min-height: 300px` to `min-height: 220px`
 - **Gaps**: Reduced from `2rem` to `1.5rem` for tighter, more organized layouts
 
-### 2. Responsive Breakpoint Optimization
+### 3. Responsive Breakpoint Optimization
 - **1400px**: `minmax(200px, 1fr)` with `1.25rem` gap
 - **1200px**: `minmax(180px, 1fr)` with `1.25rem` gap  
 - **768px**: `minmax(160px, 1fr)` with `1rem` gap
 - **480px**: `minmax(140px, 1fr)` with `0.75rem` gap
 - **360px**: `minmax(120px, 1fr)` with `0.5rem` gap
 
-### 3. Visual Refinements
+### 4. Visual Refinements
 - **Border Radius**: Reduced from `14px` to `12px` for cleaner look
 - **Shadows**: Reduced shadow intensity for subtler depth
 - **Hover Effects**: Reduced transform scale from `1.015` to `1.02` for smoother interactions
 - **Typography**: Reduced title font size from `1.1rem` to `1rem` for better proportion
 - **Play Icon**: Reduced from `4rem` to `3rem` for better card balance
 
-### 4. Layout Improvements
+### 5. Layout Improvements
 - **Grid Alignment**: Added `align-items: start` for consistent card positioning
 - **Section Spacing**: Reduced section padding from `3rem` to `2.5rem`
 - **News Grid**: Optimized from `minmax(300px, 1fr)` to `minmax(250px, 1fr)`
