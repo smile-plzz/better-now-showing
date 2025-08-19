@@ -1,6 +1,8 @@
 {
   "name": "nowshowing-app",
   "version": 2,
+  "outputDirectory": ".",
+  "buildCommand": "echo 'No build step required for static site'",
   "routes": [
     {
       "src": "/api/(.*)",
