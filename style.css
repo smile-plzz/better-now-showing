@@ -499,6 +499,7 @@ main {
     overflow: hidden;
     flex-shrink: 0; /* Prevent shrinking */
     min-height: 220px; /* Reduced from 300px for smaller cards */
+    pointer-events: none; /* Do not intercept clicks; let the card handle them */
 }
 
 /* Explicit fix for second card image container sizing anomalies */
@@ -518,6 +519,7 @@ div.movie-card:nth-of-type(2) > .movie-card-image-container {
     transform: scale(1.02);
     transition: transform 0.35s ease;
     min-height: 100%;
+    pointer-events: none; /* Ensure image also does not intercept clicks */
 }
 
 .movie-card:hover .movie-card-image-container img {
