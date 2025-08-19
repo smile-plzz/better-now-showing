@@ -482,7 +482,9 @@ main {
     flex-direction: column;
     position: relative;
     width: 100%;
-    min-height: 320px; /* Reduced from 420px for smaller cards */
+    aspect-ratio: 2 / 3; /* Enforce consistent card height */
+    height: auto;
+    min-height: 0;
     max-width: 100%;
 }
 
@@ -494,11 +496,10 @@ main {
 .movie-card-image-container {
     position: relative;
     width: 100%;
-    aspect-ratio: 2 / 3; /* Enforce consistent 2:3 poster ratio */
-    height: auto;
+    height: 100%;
     overflow: hidden;
     flex-shrink: 0; /* Prevent shrinking */
-    min-height: 220px; /* Reduced from 300px for smaller cards */
+    min-height: 0;
     pointer-events: none; /* Do not intercept clicks; let the card handle them */
 }
 
