@@ -1,4 +1,78 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // --- MEMORY MANAGEMENT & CLEANUP ---
+    const cleanupManager = {
+        timeouts: new Set(),
+        eventListeners: new Map(),
+        intervals: new Set(),
+        
+        // Track timeouts for cleanup
+        setTimeout(callback, delay) {
+            const timeoutId = setTimeout(callback, delay);
+            this.timeouts.add(timeoutId);
+            return timeoutId;
+        },
+        
+        // Track intervals for cleanup
+        setInterval(callback, delay) {
+            const intervalId = setInterval(callback, delay);
+            this.intervals.add(intervalId);
+            return intervalId;
+        },
+        
+        // Clean up all timeouts
+        clearAllTimeouts() {
+            this.timeouts.forEach(id => clearTimeout(id));
+            this.timeouts.clear();
+        },
+        
+        // Clean up all intervals
+        clearAllIntervals() {
+            this.intervals.forEach(id => clearInterval(id));
+            this.intervals.clear();
+        },
+        
+        // Track event listeners for cleanup
+        addEventListenerWithTracking(element, event, listener, options) {
+            if (!this.eventListeners.has(element)) {
+                this.eventListeners.set(element, new Map());
+            }
+            const elementListeners = this.eventListeners.get(element);
+            if (!elementListeners.has(event)) {
+                elementListeners.set(event, new Set());
+            }
+            elementListeners.get(event).add(listener);
+            element.addEventListener(event, listener, options);
+        },
+        
+        // Remove specific event listener
+        removeEventListenerWithTracking(element, event, listener) {
+            const elementListeners = this.eventListeners.get(element);
+            if (elementListeners && elementListeners.has(event)) {
+                elementListeners.get(event).delete(listener);
+                element.removeEventListener(event, listener);
+            }
+        },
+        
+        // Clean up all event listeners
+        clearAllEventListeners() {
+            this.eventListeners.forEach((elementListeners, element) => {
+                elementListeners.forEach((listeners, event) => {
+                    listeners.forEach(listener => {
+                        element.removeEventListener(event, listener);
+                    });
+                });
+            });
+            this.eventListeners.clear();
+        },
+        
+        // Full cleanup
+        cleanup() {
+            this.clearAllTimeouts();
+            this.clearAllIntervals();
+            this.clearAllEventListeners();
+        }
+    };
+
     // --- DOM ELEMENTS ---
     const searchButton = document.getElementById('search-button');
     const searchInput = document.getElementById('search-input');
@@ -148,6 +222,10 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshImage(img, originalSrc) {
             if (!img || !originalSrc || originalSrc === FALLBACK_POSTER) return;
             
+            // Clean up old image event listeners before replacement
+            if (img.onerror) img.onerror = null;
+            if (img.onload) img.onload = null;
+            
             // Create new image element
             const newImg = this.createSimpleImage(originalSrc, img.alt, {
                 loading: img.loading
@@ -155,6 +233,16 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Replace old image
             img.parentNode.replaceChild(newImg, img);
+        },
+        
+        // Clean up image resources
+        cleanupImage(img) {
+            if (img) {
+                img.onerror = null;
+                img.onload = null;
+                img.src = '';
+                img.remove();
+            }
         }
     };
     const api = {
@@ -318,13 +406,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     const movieTitle = card.querySelector('.movie-card-title').textContent;
                     const originalSrc = img.src.replace(/[?&]_cb=[^&]*/g, ''); // Remove any cache busters
                     
+                    // Clean up old image before replacement
+                    imageLoader.cleanupImage(img);
+                    
                     // Create new simple image
                     const newImg = imageLoader.createSimpleImage(originalSrc, movieTitle, {
                         loading: 'lazy'
                     });
                     
                     // Replace old image
-                    img.parentNode.replaceChild(newImg, img);
+                    card.appendChild(newImg);
                 }
             });
 
@@ -336,13 +427,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     const title = newsCard.querySelector('.news-card-title').textContent;
                     const originalSrc = img.src.replace(/[?&]_cb=[^&]*/g, ''); // Remove any cache busters
                     
+                    // Clean up old image before replacement
+                    imageLoader.cleanupImage(img);
+                    
                     // Create new simple image
                     const newImg = imageLoader.createSimpleImage(originalSrc, title, {
                         loading: 'lazy'
                     });
                     
                     // Replace old image
-                    img.parentNode.replaceChild(newImg, img);
+                    newsCard.appendChild(newImg);
                 }
             });
 
@@ -354,7 +448,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('Forcing image refresh on page load...');
             
             // Small delay to ensure DOM is ready
-            setTimeout(() => {
+            cleanupManager.setTimeout(() => {
                 this.refreshImages();
             }, 100);
         },
@@ -1144,8 +1238,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const triggerSearch = () => ui.renderSearchResults(searchInput.value.trim());
     searchButton.addEventListener('click', triggerSearch);
     searchInput.addEventListener('input', () => {
-        clearTimeout(searchDebounce);
-        searchDebounce = setTimeout(triggerSearch, 400);
+        if (searchDebounce) cleanupManager.timeouts.delete(searchDebounce);
+        searchDebounce = cleanupManager.setTimeout(triggerSearch, 400);
     });
     searchInput.addEventListener('keyup', (event) => {
         if (event.key === 'Enter') triggerSearch();
@@ -1355,9 +1449,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let clickTimer;
     refreshImagesButton.addEventListener('click', () => {
         clickCount++;
-        clearTimeout(clickTimer);
+        if (clickTimer) cleanupManager.timeouts.delete(clickTimer);
         
-        clickTimer = setTimeout(() => {
+        clickTimer = cleanupManager.setTimeout(() => {
             if (clickCount === 3) {
                 console.log('Triple-click detected - initiating nuclear refresh');
                 ui.nuclearImageRefresh();
@@ -1436,7 +1530,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.renderNews();
         
         // Force image refresh after initial render to ensure fresh loads
-        setTimeout(() => {
+        cleanupManager.setTimeout(() => {
             console.log('Initial render complete, forcing image refresh...');
             ui.forceImageRefresh();
         }, 2000);
@@ -1451,7 +1545,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (errorImages.length > 0) {
                 console.log(`Page became visible with ${errorImages.length} error images, refreshing...`);
                 // Small delay to ensure page is fully loaded
-                setTimeout(() => {
+                cleanupManager.setTimeout(() => {
                     ui.refreshImages();
                 }, 500);
             }
@@ -1462,7 +1556,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Refresh images when network comes back online
     window.addEventListener('online', () => {
         console.log('Network is back online, refreshing images...');
-        setTimeout(() => {
+        cleanupManager.setTimeout(() => {
             ui.refreshImages();
         }, 1000);
     });
@@ -1504,4 +1598,194 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('- Nuclear refresh option (triple-click for complete cache clear)');
     console.log('- Keyboard shortcut: Ctrl+R/Cmd+R to refresh images');
     console.log('- Automatic image refresh on page load');
+    
+    // --- MEMORY MONITORING & CLEANUP ---
+    
+    // Monitor memory usage and cleanup if needed
+    const memoryMonitor = {
+        lastCleanup: Date.now(),
+        cleanupInterval: 5 * 60 * 1000, // 5 minutes
+        
+        checkMemory() {
+            // Check if we need to perform cleanup
+            const now = Date.now();
+            if (now - this.lastCleanup > this.cleanupInterval) {
+                this.performCleanup();
+                this.lastCleanup = now;
+            }
+        },
+        
+        performCleanup() {
+            console.log('Performing scheduled memory cleanup...');
+            
+            // Force garbage collection if available
+            if (window.gc) {
+                window.gc();
+            }
+            
+            // Clean up any orphaned elements
+            const orphanedImages = document.querySelectorAll('img:not([src])');
+            if (orphanedImages.length > 0) {
+                console.log(`Cleaning up ${orphanedImages.length} orphaned images`);
+                orphanedImages.forEach(img => imageLoader.cleanupImage(img));
+            }
+            
+            // Log memory status
+            if ('memory' in performance) {
+                const mem = performance.memory;
+                console.log(`Memory usage: ${Math.round(mem.usedJSHeapSize / 1024 / 1024)}MB / ${Math.round(mem.jsHeapSizeLimit / 1024 / 1024)}MB`);
+            }
+        }
+    };
+    
+    // Set up periodic memory monitoring
+    const memoryCheckInterval = setInterval(() => {
+        memoryMonitor.checkMemory();
+    }, 60000); // Check every minute
+    
+    // Clean up on page unload
+    window.addEventListener('beforeunload', () => {
+        clearInterval(memoryCheckInterval);
+        cleanupManager.cleanup();
+    });
+    
+    // Clean up on page hide (mobile backgrounding)
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            // Page is hidden, perform cleanup
+            cleanupManager.clearAllTimeouts();
+            cleanupManager.clearAllIntervals();
+        }
+    });
+    
+    // Emergency cleanup function (can be called manually)
+    window.emergencyCleanup = () => {
+        console.log('Emergency cleanup initiated...');
+        cleanupManager.cleanup();
+        memoryMonitor.performCleanup();
+        
+        // Force reload if still unresponsive
+        cleanupManager.setTimeout(() => {
+            if (document.body.classList.contains('unresponsive')) {
+                console.log('Site still unresponsive, forcing reload...');
+                window.location.reload();
+            }
+        }, 2000);
+    };
+    
+    // Performance monitoring to detect unresponsiveness
+    const performanceMonitor = {
+        lastFrameTime: Date.now(),
+        frameCount: 0,
+        unresponsiveThreshold: 1000, // 1 second without frame updates
+        
+        startMonitoring() {
+            this.monitorFrame();
+            this.monitorUserInteraction();
+        },
+        
+        monitorFrame() {
+            requestAnimationFrame(() => {
+                const now = Date.now();
+                const frameDelta = now - this.lastFrameTime;
+                
+                if (frameDelta > this.unresponsiveThreshold) {
+                    console.warn(`Frame delay detected: ${frameDelta}ms - site may be unresponsive`);
+                    this.handleUnresponsiveness();
+                }
+                
+                this.lastFrameTime = now;
+                this.frameCount++;
+                
+                // Continue monitoring
+                this.monitorFrame();
+            });
+        },
+        
+        monitorUserInteraction() {
+            let lastInteraction = Date.now();
+            
+            const interactionEvents = ['click', 'touchstart', 'keydown', 'scroll'];
+            interactionEvents.forEach(event => {
+                document.addEventListener(event, () => {
+                    lastInteraction = Date.now();
+                }, { passive: true });
+            });
+            
+            // Check for lack of user interaction
+            setInterval(() => {
+                const timeSinceInteraction = Date.now() - lastInteraction;
+                if (timeSinceInteraction > 30000) { // 30 seconds
+                    // Perform light cleanup
+                    cleanupManager.clearAllTimeouts();
+                }
+            }, 10000); // Check every 10 seconds
+        },
+        
+        handleUnresponsiveness() {
+            document.body.classList.add('unresponsive');
+            
+            // Try to recover automatically
+            cleanupManager.clearAllTimeouts();
+            cleanupManager.clearAllIntervals();
+            
+            // Remove unresponsive class after recovery
+            cleanupManager.setTimeout(() => {
+                document.body.classList.remove('unresponsive');
+            }, 5000);
+        }
+    };
+    
+    // Start performance monitoring
+    performanceMonitor.startMonitoring();
+    
+    // Mobile-specific optimizations
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (isMobile) {
+        console.log('Mobile device detected - applying optimizations');
+        
+        // Reduce cleanup intervals on mobile
+        memoryMonitor.cleanupInterval = 3 * 60 * 1000; // 3 minutes instead of 5
+        
+        // Add touch event optimizations
+        document.addEventListener('touchstart', () => {
+            // Clear any pending timeouts on touch to improve responsiveness
+            cleanupManager.clearAllTimeouts();
+        }, { passive: true });
+        
+        // Reduce image refresh frequency on mobile
+        const originalRefreshImages = ui.refreshImages;
+        ui.refreshImages = function() {
+            // Only refresh if not in low memory state
+            if ('memory' in performance && performance.memory.usedJSHeapSize < performance.memory.jsHeapSizeLimit * 0.8) {
+                originalRefreshImages.call(this);
+            } else {
+                console.log('Skipping image refresh due to high memory usage');
+            }
+        };
+    }
+    
+    // Add cleanup button to navbar for debugging
+    const cleanupButton = document.createElement('button');
+    cleanupButton.innerHTML = '<i class="fas fa-broom"></i>';
+    cleanupButton.className = 'cleanup-button';
+    cleanupButton.title = 'Emergency Cleanup (Debug)';
+    cleanupButton.style.cssText = `
+        background: none;
+        border: none;
+        color: var(--text-light);
+        cursor: pointer;
+        padding: 8px;
+        margin-left: 10px;
+        border-radius: 4px;
+        transition: background-color 0.2s ease;
+    `;
+    cleanupButton.addEventListener('click', window.emergencyCleanup);
+    
+    // Insert cleanup button after refresh button
+    const navbar = document.querySelector('.navbar');
+    const refreshButton = document.querySelector('.refresh-images-button');
+    if (navbar && refreshButton) {
+        navbar.insertBefore(cleanupButton, refreshButton.nextSibling);
+    }
 });
