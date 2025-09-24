@@ -1,0 +1,76 @@
+{
+  "compilerOptions": {
+    "outDir": "art",
+    "strict": true,
+    "module": "es2020",
+    "target": "esnext",
+    "jsx": "preserve",
+    "moduleResolution": "node",
+    "experimentalDecorators": true,
+    "strictNullChecks": false,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "noImplicitAny": false,
+    "allowJs": true,
+    "sourceMap": false,
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ESNext",
+      "WebWorker"
+    ],
+    "types": [
+      "alak",
+      "alak/types",
+      "vue",
+      "pg-types",
+      "@types/node",
+      "@fastify/express",
+      "unplugin-icons/types/vue"
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "~/*": [
+        "*"
+      ],
+      "app/*": [
+        "app/*"
+      ],
+      "appModel/*": [
+        "app/model/*"
+      ],
+      "appView/*": [
+        "app/view/*"
+      ],
+      "~~/*": [
+        "server/*"
+      ]
+    },
+    "plugins": [
+      {
+        "name": "@vuedx/typescript-plugin-vue"
+      }
+    ]
+  },
+  "include": [
+    "**/*.ts",
+    "**/**/*.ts",
+    "app/view/**/*.tsx",
+    "app/view/**/*.vue",
+    "definitions/global.d.ts",
+    "definitions/vue.d.ts",
+    "node_modules/vite-plugin-import-context/client.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist-server",
+    "dist"
+  ],
+  "ts-node": {
+    "transpileOnly": true,
+    "compilerOptions": {
+      "module": "CommonJS"
+    }
+  }
+}
